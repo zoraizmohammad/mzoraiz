@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
-import NetworkCanvas from "@/components/overlays/NetworkCanvas";
+import NetworkCanvas from "@/components/network/NetworkCanvas";
 import GradientSpotlight from "@/components/overlays/GradientSpotlight";
 import VignetteOverlay from "@/components/overlays/VignetteOverlay";
 import GrainOverlay from "@/components/overlays/GrainOverlay";
