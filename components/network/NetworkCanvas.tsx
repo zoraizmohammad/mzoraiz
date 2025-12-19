@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from "react";
 import type { GraphScene, Pulse } from "./graph/types";
 import { denormalizeScene, getNodeById, normalizedToPixels } from "./graph/normalize";
-import { heroScene } from "./graph/scenes";
+import { heroScene, domainsScene, projectsScene, scenes } from "./graph/scenes";
+import { useSceneStore } from "@/store/sceneStore";
 import { stepPhysics, prefersReducedMotion } from "./sim/physics";
 import { buildEdgeMap } from "./graph/index";
 import { findPaths, createNodeTypePredicate } from "./graph/path";
@@ -43,6 +44,13 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
   const nodeGlowsRef = useRef<NodeGlow[]>([]);
   const hasEmittedEnterPulseRef = useRef(false);
   const edgeMapRef = useRef<Map<string, { from: string; to: string }>>(new Map());
+  const targetSceneRef = useRef<GraphScene | null>(null);
+  const morphProgressRef = useRef<number>(1); // 0 = start scene, 1 = target scene
+  const morphStartTimeRef = useRef<number>(0);
+  const isMorphingRef = useRef<boolean>(false);
+
+  // Subscribe to scene store
+  const { currentSceneId, sceneProgress } = useSceneStore();
 
   // Expose emitPulse method via ref
   useImperativeHandle(ref, () => ({
@@ -70,6 +78,12 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
     },
   }));
 
+  // Store currentSceneId in ref for access inside useEffect
+  const currentSceneIdRef = useRef(currentSceneId);
+  useEffect(() => {
+    currentSceneIdRef.current = currentSceneId;
+  }, [currentSceneId]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -77,8 +91,16 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    // Load scene (hardcoded to hero for now)
-    const currentScene = heroScene;
+    // Scene mapping
+    const sceneMap: Record<string, typeof heroScene> = {
+      hero: heroScene,
+      domains: domainsScene,
+      work: domainsScene,
+      experience: domainsScene,
+      proof: domainsScene,
+      notes: domainsScene,
+      contact: domainsScene,
+    };
 
     // Check for reduced motion preference
     reducedMotionRef.current = prefersReducedMotion();
@@ -118,6 +140,97 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       return { x: node.x, y: node.y };
     };
 
+    // Morph scene helper - smoothly transition between scenes
+    const morphToScene = (targetSceneId: string, nowMs: number) => {
+      const targetNormalizedScene = sceneMap[targetSceneId];
+      if (!targetNormalizedScene || !sceneRef.current) return;
+
+      const targetScene = denormalizeScene(
+        targetNormalizedScene,
+        widthRef.current,
+        heightRef.current
+      );
+
+      // Start morph
+      targetSceneRef.current = targetScene;
+      morphStartTimeRef.current = nowMs;
+      isMorphingRef.current = true;
+      morphProgressRef.current = 0;
+
+      // Reset enter pulse flag when changing scenes
+      hasEmittedEnterPulseRef.current = false;
+    };
+
+    // Watch for scene changes and trigger morph (check on each frame in animate loop)
+
+    // Update scene morphing - interpolate between current and target scene
+    const updateSceneMorph = (nowMs: number) => {
+      if (!isMorphingRef.current || !targetSceneRef.current || !sceneRef.current) return;
+
+      const morphDuration = 1000; // 1 second morph
+      const elapsed = nowMs - morphStartTimeRef.current;
+      const progress = Math.min(elapsed / morphDuration, 1);
+
+      // Ease in-out
+      const easedProgress = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      morphProgressRef.current = easedProgress;
+
+      // Create node position map for target scene
+      const targetNodeMap = new Map<string, { x: number; y: number }>();
+      targetSceneRef.current.nodes.forEach((node) => {
+        targetNodeMap.set(node.id, { x: node.x, y: node.y });
+      });
+
+      // Interpolate node positions
+      sceneRef.current.nodes.forEach((node) => {
+        const targetPos = targetNodeMap.get(node.id);
+        if (targetPos) {
+          // Morph position smoothly
+          const dx = targetPos.x - node.x;
+          const dy = targetPos.y - node.y;
+          node.x += dx * easedProgress;
+          node.y += dy * easedProgress;
+        }
+        // Nodes that don't exist in target will be removed when morph completes
+      });
+
+      // Add nodes from target that don't exist in current (fade in)
+      targetSceneRef.current.nodes.forEach((targetNode) => {
+        const existingNode = sceneRef.current!.nodes.find((n) => n.id === targetNode.id);
+        if (!existingNode) {
+          // Add new node, starting from target position (will be interpolated)
+          const newNode = { ...targetNode };
+          sceneRef.current!.nodes.push(newNode);
+        }
+      });
+
+      // Morph edges - transition to target scene edges
+      // For smooth transition, we'll blend between current and target edges
+      if (progress > 0.5) {
+        // After 50% progress, start using target edges
+        sceneRef.current.edges = targetSceneRef.current.edges;
+        edgeMapRef.current = buildEdgeMap(targetSceneRef.current);
+      }
+
+      // Update anchor positions to target scene
+      anchorPositionsRef.current.clear();
+      targetSceneRef.current.nodes.forEach((node) => {
+        anchorPositionsRef.current.set(node.id, { x: node.x, y: node.y });
+      });
+
+      // When morph completes, switch to target scene completely
+      if (progress >= 1) {
+        sceneRef.current = targetSceneRef.current;
+        edgeMapRef.current = buildEdgeMap(targetSceneRef.current);
+        isMorphingRef.current = false;
+        morphProgressRef.current = 1;
+        targetSceneRef.current = null;
+      }
+    };
+
     // Set up canvas with devicePixelRatio scaling
     const setupCanvas = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -142,9 +255,10 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
       
-      // Denormalize scene to pixel coordinates
+      // Initialize with current scene
+      const initialScene = sceneMap[currentSceneIdRef.current] || heroScene;
       const denormalizedScene = denormalizeScene(
-        currentScene,
+        initialScene,
         displayWidth,
         displayHeight
       );
@@ -155,7 +269,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
 
       // Store anchor positions for anchor force (based on normalized positions)
       anchorPositionsRef.current.clear();
-      currentScene.nodes.forEach((node) => {
+      initialScene.nodes.forEach((node) => {
         const { x, y } = normalizedToPixels(
           node.nx,
           node.ny,
@@ -172,9 +286,10 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
     // Emit scene enter pulse
     const emitSceneEnterPulse = () => {
       if (!sceneRef.current || hasEmittedEnterPulseRef.current) return;
-      if (!currentScene.onEnterPulses || currentScene.onEnterPulses.length === 0) return;
+      const normalizedScene = sceneMap[currentSceneId] || heroScene;
+      if (!normalizedScene.onEnterPulses || normalizedScene.onEnterPulses.length === 0) return;
 
-      currentScene.onEnterPulses.forEach((pulseConfig) => {
+      normalizedScene.onEnterPulses.forEach((pulseConfig) => {
         const originNode = sceneRef.current!.nodes.find(
           (n) => n.id === pulseConfig.originNodeId
         );
@@ -392,8 +507,20 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       const dt = Math.min((currentTime - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = currentTime;
 
-      // Emit scene enter pulse on first frame
-      if (!hasEmittedEnterPulseRef.current) {
+      // Check for scene changes and trigger morph
+      if (sceneRef.current && !isMorphingRef.current) {
+        const currentSceneIdFromStore = currentSceneIdRef.current;
+        const currentRenderedSceneId = sceneRef.current.id;
+        if (currentSceneIdFromStore !== currentRenderedSceneId) {
+          morphToScene(currentSceneIdFromStore, currentTime);
+        }
+      }
+
+      // Update scene morphing
+      updateSceneMorph(currentTime);
+
+      // Emit scene enter pulse on first frame or when scene changes
+      if (!hasEmittedEnterPulseRef.current && !isMorphingRef.current) {
         emitSceneEnterPulse();
       }
 
