@@ -69,9 +69,20 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
   const nodeTransitionsRef = useRef<Map<string, NodeTransition>>(new Map());
   const edgeTransitionsRef = useRef<Map<string, EdgeTransition>>(new Map());
   const cameraTransitionRef = useRef<CameraTransition | null>(null);
+  const lastActiveHubIndexRef = useRef<number | null>(null);
+  const pulseDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Subscribe to scene store
-  const { currentSceneId, sceneProgress } = useSceneStore();
+  const { currentSceneId, sceneProgress, highlightNodeIds } = useSceneStore();
+
+  // Project hub IDs in order (0-4)
+  const PROJECT_HUB_IDS = [
+    "project-aws",
+    "project-cipher",
+    "project-sonic",
+    "project-fpga",
+    "project-ml",
+  ];
 
   // Expose emitPulse method via ref
   useImperativeHandle(ref, () => ({
@@ -367,12 +378,40 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       hasEmittedEnterPulseRef.current = true;
     };
 
+    // Calculate active hub index from sceneProgress (for projects scene)
+    const getActiveHubIndex = (): number | null => {
+      if (currentSceneId !== "projects") return null;
+      const index = Math.floor(sceneProgress * PROJECT_HUB_IDS.length);
+      return Math.min(index, PROJECT_HUB_IDS.length - 1);
+    };
+
+    // Get active hub node ID
+    const getActiveHubNodeId = (): string | null => {
+      const hubIndex = getActiveHubIndex();
+      if (hubIndex === null) return null;
+      return PROJECT_HUB_IDS[hubIndex];
+    };
+
+    // Get edges connected to a node
+    const getEdgesForNode = (nodeId: string): string[] => {
+      if (!sceneRef.current) return [];
+      return sceneRef.current.edges
+        .filter((edge) => edge.from === nodeId || edge.to === nodeId)
+        .map((edge) => edge.id);
+    };
+
     // Draw base graph (edges and nodes)
     const drawBaseGraph = () => {
       if (!sceneRef.current) return;
 
       const scene = sceneRef.current;
       const transitionProgress = transitionStateRef.current?.progress ?? 1;
+      
+      // Calculate active hub for projects scene
+      const activeHubNodeId = getActiveHubNodeId();
+      const activeHubEdges = activeHubNodeId
+        ? getEdgesForNode(activeHubNodeId)
+        : [];
 
       // Draw edges as thin hairlines with transition opacity
       scene.edges.forEach((edge) => {
@@ -389,6 +428,12 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         const weightMultiplier = 0.8 + edge.weight * 0.2;
         finalOpacity = finalOpacity * weightMultiplier;
 
+        // Highlight active hub edges (subtle increase)
+        const isActiveHubEdge = activeHubEdges.includes(edge.id);
+        if (isActiveHubEdge) {
+          finalOpacity = Math.min(finalOpacity * 1.8, 0.4); // Increase opacity but keep it subtle
+        }
+
         ctx.strokeStyle = `rgba(230, 228, 223, ${finalOpacity})`;
         ctx.lineWidth = edge.weight * 0.5;
         
@@ -398,16 +443,57 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         ctx.stroke();
       });
 
-      // Draw nodes with transition opacity
+      // Draw nodes with transition opacity and highlighting
       scene.nodes.forEach((node) => {
         const baseOpacity = node.opacity ?? 1;
         const finalOpacity = baseOpacity;
+        const isHighlighted = highlightNodeIds.has(node.id);
+        const isActiveHub = activeHubNodeId === node.id;
         
-        ctx.fillStyle = `rgba(230, 228, 223, ${finalOpacity * 0.2})`;
+        // Draw highlight glow if highlighted or active hub
+        if (isHighlighted || isActiveHub) {
+          const glowRadius = node.radius + (isActiveHub ? 10 : 8);
+          const glowIntensity = isActiveHub ? 0.3 : 0.4; // Subtle glow for active hub
+          const gradient = ctx.createRadialGradient(
+            node.x,
+            node.y,
+            node.radius,
+            node.x,
+            node.y,
+            glowRadius
+          );
+          gradient.addColorStop(0, `rgba(111, 168, 255, ${finalOpacity * glowIntensity})`);
+          gradient.addColorStop(1, `rgba(111, 168, 255, 0)`);
+          
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Draw node with increased opacity for active hub
+        let nodeOpacity = finalOpacity * 0.2;
+        if (isHighlighted) {
+          nodeOpacity = finalOpacity * 0.4;
+        } else if (isActiveHub) {
+          nodeOpacity = finalOpacity * 0.35; // Subtle increase for active hub
+        }
+        
+        ctx.fillStyle = `rgba(230, 228, 223, ${nodeOpacity})`;
         
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
         ctx.fill();
+        
+        // Draw highlight ring if highlighted or active hub
+        if (isHighlighted || isActiveHub) {
+          const ringOpacity = isActiveHub ? 0.6 : 0.8; // Subtle ring for active hub
+          ctx.strokeStyle = `rgba(111, 168, 255, ${finalOpacity * ringOpacity})`;
+          ctx.lineWidth = isActiveHub ? 1.5 : 2;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, node.radius + 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       });
     };
 
@@ -580,11 +666,64 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         const currentRenderedSceneId = sceneRef.current.id;
         if (currentSceneIdFromStore !== currentRenderedSceneId) {
           startSceneTransition(currentSceneIdFromStore, currentTime);
+          // Reset active hub index when scene changes
+          lastActiveHubIndexRef.current = null;
         }
       }
 
       // Update scene transition
       updateSceneTransition(currentTime);
+
+      // Handle project hub highlighting and pulse emission
+      if (currentSceneId === "projects" && sceneRef.current) {
+        const activeHubIndex = getActiveHubIndex();
+        
+        // Emit pulse when hub index changes (debounced)
+        if (
+          activeHubIndex !== null &&
+          activeHubIndex !== lastActiveHubIndexRef.current
+        ) {
+          // Clear existing debounce
+          if (pulseDebounceTimeoutRef.current) {
+            clearTimeout(pulseDebounceTimeoutRef.current);
+          }
+
+          // Debounce pulse emission (300ms)
+          pulseDebounceTimeoutRef.current = setTimeout(() => {
+            const activeHubNodeId = PROJECT_HUB_IDS[activeHubIndex];
+            if (activeHubNodeId && sceneRef.current) {
+              // Emit soft pulse from active hub to its concept nodes
+              const pathsMap = findPaths(
+                sceneRef.current,
+                activeHubNodeId,
+                createNodeTypePredicate("concept"),
+                1 // Only immediate connections
+              );
+
+              // Emit a single subtle pulse (use first path from map)
+              const pathEntries = Array.from(pathsMap.entries());
+              if (pathEntries.length > 0) {
+                const [, firstPath] = pathEntries[0];
+                const pulse = createPulse({
+                  originNodeId: activeHubNodeId,
+                  pathEdgeIds: firstPath,
+                  speedPxPerSec: 150, // Slower, softer pulse
+                  decay: 0.5, // Faster decay for subtlety
+                  color: "rgba(111, 168, 255, 0.6)", // Softer color
+                });
+
+                pulsesRef.current.push(pulse);
+                pulseStatesRef.current.push(initializePulseState(pulse));
+              }
+            }
+          }, 300);
+
+          lastActiveHubIndexRef.current = activeHubIndex;
+        }
+      } else {
+        // Reset when not in projects scene
+        lastActiveHubIndexRef.current = null;
+      }
 
       // Emit scene enter pulse on first frame or when scene changes (not during transition)
       if (!hasEmittedEnterPulseRef.current && !transitionStateRef.current?.isActive) {
@@ -655,6 +794,9 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
     return () => {
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (pulseDebounceTimeoutRef.current) {
+        clearTimeout(pulseDebounceTimeoutRef.current);
       }
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
