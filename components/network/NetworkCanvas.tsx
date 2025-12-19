@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { GraphNode, GraphEdge, GraphScene } from "./graph/types";
-import { denormalizeScene, getNodeById } from "./graph/normalize";
+import type { GraphScene } from "./graph/types";
+import { denormalizeScene, getNodeById, normalizedToPixels } from "./graph/normalize";
 import { heroScene } from "./graph/scenes";
+import { stepPhysics, prefersReducedMotion } from "./sim/physics";
 
 export default function NetworkCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const sceneRef = useRef<GraphScene | null>(null);
+  const anchorPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const isVisibleRef = useRef(true);
   const widthRef = useRef(0);
   const heightRef = useRef(0);
+  const lastTimeRef = useRef<number>(0);
+  const lastScrollTimeRef = useRef<number>(0);
+  const isScrollingRef = useRef(false);
+  const reducedMotionRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -22,6 +28,21 @@ export default function NetworkCanvas() {
 
     // Load scene (hardcoded to hero for now)
     const currentScene = heroScene;
+
+    // Check for reduced motion preference
+    reducedMotionRef.current = prefersReducedMotion();
+
+    // Track scrolling for idle detection
+    let scrollTimeout: NodeJS.Timeout;
+    const handleScroll = () => {
+      isScrollingRef.current = true;
+      lastScrollTimeRef.current = performance.now();
+      
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 150); // Consider idle after 150ms of no scrolling
+    };
 
     // Set up canvas with devicePixelRatio scaling
     const setupCanvas = () => {
@@ -48,34 +69,23 @@ export default function NetworkCanvas() {
       ctx.scale(dpr, dpr);
       
       // Denormalize scene to pixel coordinates
-      sceneRef.current = denormalizeScene(
+      const denormalizedScene = denormalizeScene(
         currentScene,
         displayWidth,
         displayHeight
       );
-    };
+      sceneRef.current = denormalizedScene;
 
-    // Update node positions (subtle movement for non-fixed nodes)
-    const updateNodes = (width: number, height: number) => {
-      if (!sceneRef.current) return;
-
-      sceneRef.current.nodes.forEach((node) => {
-        // Skip fixed nodes
-        if (node.fixed) return;
-
-        // Update position
-        node.x += node.vx;
-        node.y += node.vy;
-
-        // Bounce off edges
-        if (node.x < node.radius || node.x > width - node.radius) {
-          node.vx *= -1;
-          node.x = Math.max(node.radius, Math.min(width - node.radius, node.x));
-        }
-        if (node.y < node.radius || node.y > height - node.radius) {
-          node.vy *= -1;
-          node.y = Math.max(node.radius, Math.min(height - node.radius, node.y));
-        }
+      // Store anchor positions for anchor force (based on normalized positions)
+      anchorPositionsRef.current.clear();
+      currentScene.nodes.forEach((node) => {
+        const { x, y } = normalizedToPixels(
+          node.nx,
+          node.ny,
+          displayWidth,
+          displayHeight
+        );
+        anchorPositionsRef.current.set(node.id, { x, y });
       });
     };
 
@@ -88,9 +98,6 @@ export default function NetworkCanvas() {
 
       // Clear canvas using CSS pixel dimensions (context is already scaled)
       ctx.clearRect(0, 0, width, height);
-
-      // Update node positions
-      updateNodes(width, height);
 
       const scene = sceneRef.current;
 
@@ -122,23 +129,57 @@ export default function NetworkCanvas() {
       });
     };
 
-    // Render loop
-    const animate = () => {
-      if (isVisibleRef.current) {
-        render();
+    // Render loop with physics
+    const animate = (currentTime: number) => {
+      if (!isVisibleRef.current || !sceneRef.current) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
       }
+
+      // Calculate delta time (in seconds, capped at 0.1s to prevent large jumps)
+      const dt = Math.min((currentTime - lastTimeRef.current) / 1000, 0.1);
+      lastTimeRef.current = currentTime;
+
+      // Calculate physics intensity based on idle state
+      // Reduce intensity if not scrolling and no recent activity
+      const timeSinceScroll = currentTime - lastScrollTimeRef.current;
+      const isIdle = !isScrollingRef.current && timeSinceScroll > 500; // 500ms idle threshold
+      const intensity = isIdle ? 0.3 : 1.0; // Reduce to 30% when idle
+
+      // Step physics simulation
+      stepPhysics(
+        sceneRef.current,
+        dt * 60, // Scale dt to ~60fps equivalent
+        widthRef.current,
+        heightRef.current,
+        {
+          reducedMotion: reducedMotionRef.current,
+          intensity,
+        },
+        anchorPositionsRef.current,
+        currentTime
+      );
+
+      // Render
+      render();
+
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     // Page Visibility API - pause when tab is hidden
     const handleVisibilityChange = () => {
       isVisibleRef.current = !document.hidden;
+      if (!document.hidden) {
+        lastTimeRef.current = performance.now();
+      }
     };
 
     // Initial setup with a small delay to ensure DOM is ready
     const init = () => {
       setupCanvas();
-      animate();
+      lastTimeRef.current = performance.now();
+      lastScrollTimeRef.current = performance.now();
+      animate(performance.now());
     };
 
     // Use requestAnimationFrame to ensure canvas is laid out
@@ -154,6 +195,10 @@ export default function NetworkCanvas() {
     // Listen for visibility changes
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // Listen for scroll events
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("wheel", handleScroll, { passive: true });
+
     // Cleanup
     return () => {
       if (animationFrameRef.current !== null) {
@@ -161,6 +206,9 @@ export default function NetworkCanvas() {
       }
       resizeObserver.disconnect();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("wheel", handleScroll);
+      clearTimeout(scrollTimeout);
     };
   }, []);
 
