@@ -1,25 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
-interface Node {
-  x: number;
-  y: number;
-  radius: number;
-  vx: number;
-  vy: number;
-}
-
-interface Edge {
-  from: Node;
-  to: Node;
-}
+import type { GraphNode, GraphEdge, GraphScene } from "./graph/types";
+import { denormalizeScene, getNodeById } from "./graph/normalize";
+import { heroScene } from "./graph/scenes";
 
 export default function NetworkCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const nodesRef = useRef<Node[]>([]);
-  const edgesRef = useRef<Edge[]>([]);
+  const sceneRef = useRef<GraphScene | null>(null);
   const isVisibleRef = useRef(true);
   const widthRef = useRef(0);
   const heightRef = useRef(0);
@@ -31,60 +20,8 @@ export default function NetworkCanvas() {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    // Initialize test scene with nodes and edges
-    const initScene = (width: number, height: number) => {
-      const nodeCount = 20; // Increased node count for better connectivity
-      const nodes: Node[] = [];
-      
-      // Create nodes distributed evenly across the canvas with some clustering
-      const cols = 5;
-      const rows = 4;
-      
-      for (let i = 0; i < nodeCount; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        
-        // Calculate cluster center position
-        const clusterX = (col / (cols - 1)) * width * 0.8 + width * 0.1;
-        const clusterY = (row / (rows - 1)) * height * 0.8 + height * 0.1;
-        
-        // Add some randomness around the cluster center
-        const spreadX = width * 0.15;
-        const spreadY = height * 0.15;
-        
-        nodes.push({
-          x: clusterX + (Math.random() - 0.5) * spreadX,
-          y: clusterY + (Math.random() - 0.5) * spreadY,
-          radius: 2 + Math.random() * 3,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: (Math.random() - 0.5) * 0.3,
-        });
-      }
-
-      nodesRef.current = nodes;
-    };
-
-    // Update edges dynamically based on current node positions
-    const updateEdges = (width: number, height: number) => {
-      const nodes = nodesRef.current;
-      const maxDistance = Math.min(width, height) * 0.25; // Connection distance
-      const edges: Edge[] = [];
-      
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[i].x - nodes[j].x;
-          const dy = nodes[i].y - nodes[j].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Connect nodes that are within the connection distance
-          if (distance < maxDistance) {
-            edges.push({ from: nodes[i], to: nodes[j] });
-          }
-        }
-      }
-      
-      edgesRef.current = edges;
-    };
+    // Load scene (hardcoded to hero for now)
+    const currentScene = heroScene;
 
     // Set up canvas with devicePixelRatio scaling
     const setupCanvas = () => {
@@ -110,13 +47,23 @@ export default function NetworkCanvas() {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
       
-      // Initialize scene with new dimensions
-      initScene(displayWidth, displayHeight);
+      // Denormalize scene to pixel coordinates
+      sceneRef.current = denormalizeScene(
+        currentScene,
+        displayWidth,
+        displayHeight
+      );
     };
 
-    // Update node positions (subtle movement)
+    // Update node positions (subtle movement for non-fixed nodes)
     const updateNodes = (width: number, height: number) => {
-      nodesRef.current.forEach((node) => {
+      if (!sceneRef.current) return;
+
+      sceneRef.current.nodes.forEach((node) => {
+        // Skip fixed nodes
+        if (node.fixed) return;
+
+        // Update position
         node.x += node.vx;
         node.y += node.vy;
 
@@ -137,7 +84,7 @@ export default function NetworkCanvas() {
       const width = widthRef.current;
       const height = heightRef.current;
 
-      if (width === 0 || height === 0) return;
+      if (width === 0 || height === 0 || !sceneRef.current) return;
 
       // Clear canvas using CSS pixel dimensions (context is already scaled)
       ctx.clearRect(0, 0, width, height);
@@ -145,24 +92,30 @@ export default function NetworkCanvas() {
       // Update node positions
       updateNodes(width, height);
 
-      // Update edges based on current node positions (dynamic connections)
-      updateEdges(width, height);
+      const scene = sceneRef.current;
 
-      // Draw edges (thin lines with low opacity)
-      ctx.strokeStyle = "rgba(230, 228, 223, 0.15)"; // Warm off-white hairline
-      ctx.lineWidth = 0.5;
-      
-      edgesRef.current.forEach((edge) => {
+      // Draw edges
+      scene.edges.forEach((edge) => {
+        const fromNode = getNodeById(scene, edge.from);
+        const toNode = getNodeById(scene, edge.to);
+
+        if (!fromNode || !toNode) return;
+
+        ctx.strokeStyle = `rgba(230, 228, 223, ${(edge.opacity ?? 1) * 0.15})`;
+        ctx.lineWidth = edge.weight * 0.5;
+        
         ctx.beginPath();
-        ctx.moveTo(edge.from.x, edge.from.y);
-        ctx.lineTo(edge.to.x, edge.to.y);
+        ctx.moveTo(fromNode.x, fromNode.y);
+        ctx.lineTo(toNode.x, toNode.y);
         ctx.stroke();
       });
 
-      // Draw nodes (circles)
-      ctx.fillStyle = "rgba(230, 228, 223, 0.2)"; // Warm off-white, slightly more visible
-      
-      nodesRef.current.forEach((node) => {
+      // Draw nodes
+      scene.nodes.forEach((node) => {
+        const opacity = node.opacity ?? 1;
+        
+        ctx.fillStyle = `rgba(230, 228, 223, ${opacity * 0.2})`;
+        
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -219,4 +172,3 @@ export default function NetworkCanvas() {
     />
   );
 }
-
