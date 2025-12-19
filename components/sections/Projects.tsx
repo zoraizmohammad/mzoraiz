@@ -7,7 +7,7 @@ import { projects, projectNodeIdMap, type Project } from "@/content/projects";
 
 export default function Projects() {
   const reducedMotion = useReducedMotion();
-  const isManuallySelectedRef = useRef(false);
+  const manualLockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const {
     activeProjectId,
     hoverProjectId,
@@ -19,24 +19,33 @@ export default function Projects() {
     currentSceneId,
   } = useSceneStore();
 
-  // Sync active project with sceneProgress when pinned (only if not manually selected)
-  useEffect(() => {
-    if (currentSceneId === "projects" && !isManuallySelectedRef.current) {
-      const activeIndex = Math.floor(sceneProgress * projects.length);
-      const clampedIndex = Math.min(activeIndex, projects.length - 1);
-      const syncedProjectId = projects[clampedIndex]?.id || null;
-      if (syncedProjectId && syncedProjectId !== activeProjectId) {
-        setActiveProjectId(syncedProjectId as any);
-      }
+  // Set manual lock for 4 seconds when user clicks
+  const setManualLock = useCallback(() => {
+    // Clear existing timeout
+    if (manualLockTimeoutRef.current) {
+      clearTimeout(manualLockTimeoutRef.current);
     }
-  }, [sceneProgress, currentSceneId, activeProjectId, setActiveProjectId]);
+    
+    // Set lock until 4 seconds from now
+    const lockUntil = Date.now() + 4000;
+    (window as any).__workManualLockUntil = lockUntil;
+    
+    // Clear lock after 4 seconds
+    manualLockTimeoutRef.current = setTimeout(() => {
+      (window as any).__workManualLockUntil = null;
+      manualLockTimeoutRef.current = null;
+    }, 4000);
+  }, []);
   
-  // Reset manual selection flag when scene changes
+  // Cleanup manual lock on unmount
   useEffect(() => {
-    if (currentSceneId !== "projects") {
-      isManuallySelectedRef.current = false;
-    }
-  }, [currentSceneId]);
+    return () => {
+      if (manualLockTimeoutRef.current) {
+        clearTimeout(manualLockTimeoutRef.current);
+      }
+      delete (window as any).__workManualLockUntil;
+    };
+  }, []);
 
   // Initialize active project if none selected
   useEffect(() => {
@@ -70,7 +79,9 @@ export default function Projects() {
   // Handle project click
   const handleProjectClick = useCallback(
     (project: Project) => {
-      isManuallySelectedRef.current = true; // Mark as manually selected
+      // Set manual lock for 4 seconds
+      setManualLock();
+      
       setActiveProjectId(project.id as any);
       
       // Highlight project hub and its neighbors
@@ -90,7 +101,7 @@ export default function Projects() {
         setHighlightNodeIds(highlightIds);
       }
     },
-    [setActiveProjectId, setHighlightNodeIds]
+    [setActiveProjectId, setHighlightNodeIds, setManualLock]
   );
 
   // Update highlights when active project changes (without triggering click handler)

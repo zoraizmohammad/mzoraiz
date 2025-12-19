@@ -3,12 +3,15 @@
 import { useEffect, useRef } from "react";
 import { registerScrollTrigger, prefersReducedMotion, getScrollTrigger } from "./scrollTrigger";
 import { useSceneStore } from "@/store/sceneStore";
+import { projects, projectNodeIdMap } from "@/content/projects";
 
 export default function PinnedSections() {
   const scrollTriggersRef = useRef<Array<{ kill: () => void }>>([]);
   const lenisRef = useRef<any>(null);
   const rafRef = useRef<number | null>(null);
-  const { setCurrentSceneId, setSceneProgress, setActiveSectionId } = useSceneStore();
+  const lastWorkProjectIndexRef = useRef<number | null>(null);
+  const workPulseDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const { setCurrentSceneId, setSceneProgress, setActiveSectionId, setActiveProjectId, activeProjectId } = useSceneStore();
 
   useEffect(() => {
     // Check for reduced motion - disable pinning if enabled
@@ -95,11 +98,43 @@ export default function PinnedSections() {
           onUpdate: (self: { progress: number }) => {
             setActiveSectionId("work");
             setCurrentSceneId("projects");
-            // Map progress to project hub index (0-4)
-            const projectIndex = Math.floor(self.progress * 5);
+            
+            // Compute active project index (0-4) from progress
+            const projectIndex = Math.floor(self.progress * projects.length);
+            const clampedIndex = Math.min(projectIndex, projects.length - 1);
+            
             // Normalize progress to 0-1 for each project
-            const normalizedProgress = (self.progress * 5) % 1;
+            const normalizedProgress = (self.progress * projects.length) % 1;
             setSceneProgress(normalizedProgress);
+            
+            // Update activeProjectId only when index changes (and not manually locked)
+            const isManuallyLocked = (window as any).__workManualLockUntil;
+            const now = Date.now();
+            const isLocked = isManuallyLocked && now < isManuallyLocked;
+            
+            if (!isLocked && clampedIndex !== lastWorkProjectIndexRef.current) {
+              const newProjectId = projects[clampedIndex]?.id;
+              if (newProjectId && newProjectId !== activeProjectId) {
+                setActiveProjectId(newProjectId as any);
+                lastWorkProjectIndexRef.current = clampedIndex;
+                
+                // Emit subtle pulse from project hub (debounced)
+                if (workPulseDebounceRef.current) {
+                  clearTimeout(workPulseDebounceRef.current);
+                }
+                
+                workPulseDebounceRef.current = setTimeout(() => {
+                  const networkCanvas = (window as any).__networkCanvasRef;
+                  if (networkCanvas?.current) {
+                    const nodeId = projectNodeIdMap[newProjectId];
+                    if (nodeId) {
+                      // Emit soft pulse to concept nodes
+                      networkCanvas.current.emitPulse(nodeId, "concept");
+                    }
+                  }
+                }, 300); // 300ms debounce
+              }
+            }
           },
         });
         scrollTriggersRef.current.push(workTrigger);
@@ -151,13 +186,19 @@ export default function PinnedSections() {
         rafRef.current = null;
       }
 
+      // Clear pulse debounce
+      if (workPulseDebounceRef.current) {
+        clearTimeout(workPulseDebounceRef.current);
+        workPulseDebounceRef.current = null;
+      }
+
       // Refresh ScrollTrigger
       const st = getScrollTrigger();
       if (st) {
         st.refresh();
       }
     };
-  }, [setCurrentSceneId, setSceneProgress, setActiveSectionId]);
+  }, [setCurrentSceneId, setSceneProgress, setActiveSectionId, setActiveProjectId, activeProjectId]);
 
   return null; // This component doesn't render anything
 }
