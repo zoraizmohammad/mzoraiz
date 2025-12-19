@@ -2,3 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --bg-primary: #0B0D10;
+    --text-primary: #E6E4DF;
+    --text-secondary: #A9A7A2;
+    --accent: #6FA8FF;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+  }
+}

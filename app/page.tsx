@@ -1,15 +1,21 @@
+import Hero from "@/components/sections/Hero";
+import Domains from "@/components/sections/Domains";
+import Projects from "@/components/sections/Projects";
+import Experience from "@/components/sections/Experience";
+import Proof from "@/components/sections/Proof";
+import Notes from "@/components/sections/Notes";
+import Contact from "@/components/sections/Contact";
+
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 py-16">
-        <h1 className="text-4xl font-bold mb-4">
-          Information Diffusion Portfolio
-        </h1>
-        <p className="text-lg text-gray-400">
-          Mohammad Zoraiz
-        </p>
-      </div>
+    <main>
+      <Hero />
+      <Domains />
+      <Projects />
+      <Experience />
+      <Proof />
+      <Notes />
+      <Contact />
     </main>
   );
 }
-
