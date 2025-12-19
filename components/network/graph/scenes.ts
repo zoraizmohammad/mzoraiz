@@ -48,6 +48,12 @@ export const heroScene: NormalizedScene = {
     { id: "e3", from: "you", to: "domain-3" },
     { id: "e4", from: "you", to: "domain-4" },
   ],
+  onEnterPulses: [
+    {
+      originNodeId: "you",
+      toNodeType: "domain",
+    },
+  ],
   defaults: {
     nodeRadius: 3,
     nodeMass: 1,

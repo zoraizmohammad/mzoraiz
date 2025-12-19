@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
-import NetworkCanvas from "@/components/network/NetworkCanvas";
+import NetworkCanvasWrapper from "@/components/network/NetworkCanvasWrapper";
 import GradientSpotlight from "@/components/overlays/GradientSpotlight";
 import VignetteOverlay from "@/components/overlays/VignetteOverlay";
 import GrainOverlay from "@/components/overlays/GrainOverlay";
@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-[var(--color-background)] text-[var(--color-text-primary)] antialiased">
-        <NetworkCanvas />
+        <NetworkCanvasWrapper />
         <GradientSpotlight />
         <Navigation />
         <div className="relative z-20">{children}</div>
