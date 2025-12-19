@@ -26,8 +26,7 @@ export default function Navigation() {
           <a
             href="#hero"
             onClick={(e) => handleClick(e, "hero")}
-            className="text-[#E6E4DF] font-light text-sm tracking-wide"
-            style={{ fontFamily: "Optima, sans-serif" }}
+            className="font-optima text-[var(--color-text-primary)] text-sm font-light tracking-wide"
           >
             Mohammad Zoraiz
           </a>
@@ -38,8 +37,7 @@ export default function Navigation() {
               key={section.id}
               href={`#${section.id}`}
               onClick={(e) => handleClick(e, section.id)}
-              className="text-[#A9A7A2] font-light text-xs tracking-wide hover:text-[#E6E4DF] transition-colors"
-              style={{ fontFamily: "Optima, sans-serif" }}
+              className="ui-label hover:text-[var(--color-text-primary)] transition-colors"
             >
               {section.label}
             </a>

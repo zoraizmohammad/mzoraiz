@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="bg-[#0B0D10] text-[#E6E4DF]">
+      <body className="bg-[var(--color-background)] text-[var(--color-text-primary)] antialiased">
         <NetworkCanvas />
         <GradientSpotlight />
         <Navigation />
