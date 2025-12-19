@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SceneId = "hero" | "domains" | "work" | "experience" | "proof" | "notes" | "contact";
+export type SceneId = "hero" | "domains" | "projects" | "work" | "experience" | "proof" | "notes" | "contact";
 
 interface SceneState {
   currentSceneId: SceneId;

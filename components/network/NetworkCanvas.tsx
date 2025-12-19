@@ -7,6 +7,27 @@ import { heroScene, domainsScene, projectsScene, scenes } from "./graph/scenes";
 import { useSceneStore } from "@/store/sceneStore";
 import { stepPhysics, prefersReducedMotion } from "./sim/physics";
 import { buildEdgeMap } from "./graph/index";
+import {
+  startTransition,
+  updateTransition,
+  createNodeTransitions,
+  createEdgeTransitions,
+  applyNodeTransitions,
+  applyEdgeTransitions,
+  getNodesToRemove,
+  getEdgesToRemove,
+  type TransitionState,
+  type NodeTransition,
+  type EdgeTransition,
+} from "./sim/transition";
+import {
+  sceneCameraToState,
+  startCameraTransition,
+  updateCameraTransition,
+  getCurrentCamera,
+  applyCameraTransform,
+  type CameraTransition,
+} from "./sim/camera";
 import { findPaths, createNodeTypePredicate } from "./graph/path";
 import {
   createPulse,
@@ -44,10 +65,10 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
   const nodeGlowsRef = useRef<NodeGlow[]>([]);
   const hasEmittedEnterPulseRef = useRef(false);
   const edgeMapRef = useRef<Map<string, { from: string; to: string }>>(new Map());
-  const targetSceneRef = useRef<GraphScene | null>(null);
-  const morphProgressRef = useRef<number>(1); // 0 = start scene, 1 = target scene
-  const morphStartTimeRef = useRef<number>(0);
-  const isMorphingRef = useRef<boolean>(false);
+  const transitionStateRef = useRef<TransitionState | null>(null);
+  const nodeTransitionsRef = useRef<Map<string, NodeTransition>>(new Map());
+  const edgeTransitionsRef = useRef<Map<string, EdgeTransition>>(new Map());
+  const cameraTransitionRef = useRef<CameraTransition | null>(null);
 
   // Subscribe to scene store
   const { currentSceneId, sceneProgress } = useSceneStore();
@@ -95,11 +116,12 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
     const sceneMap: Record<string, typeof heroScene> = {
       hero: heroScene,
       domains: domainsScene,
-      work: domainsScene,
+      projects: projectsScene,
+      work: projectsScene, // work section uses projects scene
       experience: domainsScene,
       proof: domainsScene,
       notes: domainsScene,
-      contact: domainsScene,
+      contact: heroScene, // contact returns to hero scene
     };
 
     // Check for reduced motion preference
@@ -140,8 +162,8 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       return { x: node.x, y: node.y };
     };
 
-    // Morph scene helper - smoothly transition between scenes
-    const morphToScene = (targetSceneId: string, nowMs: number) => {
+    // Start scene transition
+    const startSceneTransition = (targetSceneId: string, nowMs: number) => {
       const targetNormalizedScene = sceneMap[targetSceneId];
       if (!targetNormalizedScene || !sceneRef.current) return;
 
@@ -151,83 +173,105 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         heightRef.current
       );
 
-      // Start morph
-      targetSceneRef.current = targetScene;
-      morphStartTimeRef.current = nowMs;
-      isMorphingRef.current = true;
-      morphProgressRef.current = 0;
+      // Start transition
+      transitionStateRef.current = startTransition(
+        sceneRef.current,
+        targetScene,
+        900 // 900ms transition duration
+      );
+
+      // Create node and edge transitions
+      nodeTransitionsRef.current = createNodeTransitions(sceneRef.current, targetScene);
+      edgeTransitionsRef.current = createEdgeTransitions(sceneRef.current, targetScene);
+
+      // Start camera transition if scenes have cameras
+      const fromCamera = sceneCameraToState(sceneRef.current.camera);
+      const toCamera = sceneCameraToState(targetScene.camera);
+      cameraTransitionRef.current = startCameraTransition(fromCamera, toCamera, 900);
+
+      // Add nodes from target that don't exist in current (for spawning)
+      targetScene.nodes.forEach((targetNode) => {
+        const existingNode = sceneRef.current!.nodes.find((n) => n.id === targetNode.id);
+        if (!existingNode) {
+          // Spawn new node at target position with 0 opacity
+          const newNode = { ...targetNode };
+          newNode.opacity = 0;
+          sceneRef.current!.nodes.push(newNode);
+        }
+      });
+
+      // Add edges from target that don't exist in current (for fading in)
+      targetScene.edges.forEach((targetEdge) => {
+        const existingEdge = sceneRef.current!.edges.find((e) => e.id === targetEdge.id);
+        if (!existingEdge) {
+          // Spawn new edge with 0 opacity
+          const newEdge = { ...targetEdge };
+          newEdge.opacity = 0;
+          sceneRef.current!.edges.push(newEdge);
+        }
+      });
+
+      // Update anchor positions to target scene (these guide physics)
+      anchorPositionsRef.current.clear();
+      targetScene.nodes.forEach((node) => {
+        const transition = nodeTransitionsRef.current.get(node.id);
+        if (transition) {
+          // Use target position from transition
+          anchorPositionsRef.current.set(node.id, { x: transition.targetX, y: transition.targetY });
+        } else {
+          anchorPositionsRef.current.set(node.id, { x: node.x, y: node.y });
+        }
+      });
 
       // Reset enter pulse flag when changing scenes
       hasEmittedEnterPulseRef.current = false;
     };
 
-    // Watch for scene changes and trigger morph (check on each frame in animate loop)
+    // Update scene transition
+    const updateSceneTransition = (nowMs: number) => {
+      if (!transitionStateRef.current || !transitionStateRef.current.isActive) return;
 
-    // Update scene morphing - interpolate between current and target scene
-    const updateSceneMorph = (nowMs: number) => {
-      if (!isMorphingRef.current || !targetSceneRef.current || !sceneRef.current) return;
+      // Update transition progress
+      transitionStateRef.current = updateTransition(transitionStateRef.current, nowMs);
 
-      const morphDuration = 1000; // 1 second morph
-      const elapsed = nowMs - morphStartTimeRef.current;
-      const progress = Math.min(elapsed / morphDuration, 1);
+      const progress = transitionStateRef.current.progress;
 
-      // Ease in-out
-      const easedProgress = progress < 0.5
-        ? 2 * progress * progress
-        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      // Apply node transitions (opacity)
+      applyNodeTransitions(nodeTransitionsRef.current, progress);
 
-      morphProgressRef.current = easedProgress;
+      // Apply edge transitions (opacity)
+      applyEdgeTransitions(edgeTransitionsRef.current, progress);
 
-      // Create node position map for target scene
-      const targetNodeMap = new Map<string, { x: number; y: number }>();
-      targetSceneRef.current.nodes.forEach((node) => {
-        targetNodeMap.set(node.id, { x: node.x, y: node.y });
-      });
-
-      // Interpolate node positions
-      sceneRef.current.nodes.forEach((node) => {
-        const targetPos = targetNodeMap.get(node.id);
-        if (targetPos) {
-          // Morph position smoothly
-          const dx = targetPos.x - node.x;
-          const dy = targetPos.y - node.y;
-          node.x += dx * easedProgress;
-          node.y += dy * easedProgress;
-        }
-        // Nodes that don't exist in target will be removed when morph completes
-      });
-
-      // Add nodes from target that don't exist in current (fade in)
-      targetSceneRef.current.nodes.forEach((targetNode) => {
-        const existingNode = sceneRef.current!.nodes.find((n) => n.id === targetNode.id);
-        if (!existingNode) {
-          // Add new node, starting from target position (will be interpolated)
-          const newNode = { ...targetNode };
-          sceneRef.current!.nodes.push(newNode);
-        }
-      });
-
-      // Morph edges - transition to target scene edges
-      // For smooth transition, we'll blend between current and target edges
-      if (progress > 0.5) {
-        // After 50% progress, start using target edges
-        sceneRef.current.edges = targetSceneRef.current.edges;
-        edgeMapRef.current = buildEdgeMap(targetSceneRef.current);
+      // Update camera transition
+      if (cameraTransitionRef.current) {
+        cameraTransitionRef.current = updateCameraTransition(cameraTransitionRef.current, nowMs);
       }
 
-      // Update anchor positions to target scene
-      anchorPositionsRef.current.clear();
-      targetSceneRef.current.nodes.forEach((node) => {
-        anchorPositionsRef.current.set(node.id, { x: node.x, y: node.y });
-      });
+      // When transition completes, finalize scene switch
+      if (!transitionStateRef.current.isActive) {
+        const toScene = transitionStateRef.current.toScene;
 
-      // When morph completes, switch to target scene completely
-      if (progress >= 1) {
-        sceneRef.current = targetSceneRef.current;
-        edgeMapRef.current = buildEdgeMap(targetSceneRef.current);
-        isMorphingRef.current = false;
-        morphProgressRef.current = 1;
-        targetSceneRef.current = null;
+        // Remove nodes that don't exist in target
+        const nodesToRemove = getNodesToRemove(nodeTransitionsRef.current);
+        sceneRef.current!.nodes = sceneRef.current!.nodes.filter(
+          (node) => !nodesToRemove.includes(node.id)
+        );
+
+        // Remove edges that don't exist in target
+        const edgesToRemove = getEdgesToRemove(edgeTransitionsRef.current);
+        sceneRef.current!.edges = sceneRef.current!.edges.filter(
+          (edge) => !edgesToRemove.includes(edge.id)
+        );
+
+        // Switch to target scene
+        sceneRef.current = toScene;
+        edgeMapRef.current = buildEdgeMap(toScene);
+
+        // Clear transitions
+        transitionStateRef.current = null;
+        nodeTransitionsRef.current.clear();
+        edgeTransitionsRef.current.clear();
+        cameraTransitionRef.current = null;
       }
     };
 
@@ -328,15 +372,24 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       if (!sceneRef.current) return;
 
       const scene = sceneRef.current;
+      const transitionProgress = transitionStateRef.current?.progress ?? 1;
 
-      // Draw edges as thin hairlines
+      // Draw edges as thin hairlines with transition opacity
       scene.edges.forEach((edge) => {
         const fromNode = getNodeById(scene, edge.from);
         const toNode = getNodeById(scene, edge.to);
 
         if (!fromNode || !toNode) return;
 
-        ctx.strokeStyle = `rgba(230, 228, 223, ${(edge.opacity ?? 1) * 0.15})`;
+        // Use edge's opacity (updated by transition system)
+        const baseOpacity = 0.15; // Base hairline opacity
+        let finalOpacity = baseOpacity * (edge.opacity ?? 1);
+
+        // Edge weight affects opacity subtly
+        const weightMultiplier = 0.8 + edge.weight * 0.2;
+        finalOpacity = finalOpacity * weightMultiplier;
+
+        ctx.strokeStyle = `rgba(230, 228, 223, ${finalOpacity})`;
         ctx.lineWidth = edge.weight * 0.5;
         
         ctx.beginPath();
@@ -345,11 +398,12 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         ctx.stroke();
       });
 
-      // Draw nodes
+      // Draw nodes with transition opacity
       scene.nodes.forEach((node) => {
-        const opacity = node.opacity ?? 1;
+        const baseOpacity = node.opacity ?? 1;
+        const finalOpacity = baseOpacity;
         
-        ctx.fillStyle = `rgba(230, 228, 223, ${opacity * 0.2})`;
+        ctx.fillStyle = `rgba(230, 228, 223, ${finalOpacity * 0.2})`;
         
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
@@ -486,6 +540,14 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       // Clear canvas using CSS pixel dimensions (context is already scaled)
       ctx.clearRect(0, 0, width, height);
 
+      // Apply camera transform if active
+      const currentCamera = getCurrentCamera(cameraTransitionRef.current);
+      const hasCameraTransform = currentCamera.zoom !== 1 || currentCamera.cx !== 0.5 || currentCamera.cy !== 0.5;
+      
+      if (hasCameraTransform) {
+        applyCameraTransform(ctx, currentCamera, width, height);
+      }
+
       // Draw base graph
       drawBaseGraph();
 
@@ -494,6 +556,11 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
 
       // Draw node glows
       drawNodeGlows(nowMs);
+
+      // Restore camera transform if applied
+      if (hasCameraTransform) {
+        ctx.restore();
+      }
     };
 
     // Render loop with physics
@@ -507,20 +574,20 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       const dt = Math.min((currentTime - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = currentTime;
 
-      // Check for scene changes and trigger morph
-      if (sceneRef.current && !isMorphingRef.current) {
+      // Check for scene changes and trigger transition
+      if (sceneRef.current && !transitionStateRef.current?.isActive) {
         const currentSceneIdFromStore = currentSceneIdRef.current;
         const currentRenderedSceneId = sceneRef.current.id;
         if (currentSceneIdFromStore !== currentRenderedSceneId) {
-          morphToScene(currentSceneIdFromStore, currentTime);
+          startSceneTransition(currentSceneIdFromStore, currentTime);
         }
       }
 
-      // Update scene morphing
-      updateSceneMorph(currentTime);
+      // Update scene transition
+      updateSceneTransition(currentTime);
 
-      // Emit scene enter pulse on first frame or when scene changes
-      if (!hasEmittedEnterPulseRef.current && !isMorphingRef.current) {
+      // Emit scene enter pulse on first frame or when scene changes (not during transition)
+      if (!hasEmittedEnterPulseRef.current && !transitionStateRef.current?.isActive) {
         emitSceneEnterPulse();
       }
 
@@ -529,7 +596,8 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
       const isIdle = !isScrollingRef.current && timeSinceScroll > 500;
       const intensity = isIdle ? 0.3 : 1.0;
 
-      // Step physics simulation
+      // Step physics simulation (with increased anchor force during transitions)
+      const isTransitioning = transitionStateRef.current?.isActive ?? false;
       stepPhysics(
         sceneRef.current,
         dt * 60,
@@ -538,6 +606,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         {
           reducedMotion: reducedMotionRef.current,
           intensity,
+          isTransitioning,
         },
         anchorPositionsRef.current,
         currentTime

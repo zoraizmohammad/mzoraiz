@@ -15,20 +15,25 @@ const SECTION_IDS: SceneId[] = ["hero", "domains", "work", "experience", "proof"
 const SECTION_SCENE_MAP: Record<SceneId, SceneId> = {
   hero: "hero",
   domains: "domains",
-  work: "domains", // work uses domains scene for now
+  projects: "projects",
+  work: "projects", // work uses projects scene
   experience: "domains",
   proof: "domains",
   notes: "domains",
-  contact: "domains",
+  contact: "hero", // contact returns to hero scene
 };
+
+// Sections that are pinned by ScrollTrigger - SceneManager should not interfere with these
+const PINNED_SECTIONS: SceneId[] = ["hero", "work", "contact"];
 
 export default function SceneManager({ onEnter, onProgress }: SceneManagerProps) {
   const sectionsRef = useRef<Map<SceneId, HTMLElement>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastActiveSectionRef = useRef<SceneId | null>(null);
+  const isPinnedSectionActiveRef = useRef(false);
 
-  const { setCurrentSceneId, setSceneProgress, setActiveSectionId } = useSceneStore();
+  const { setCurrentSceneId, setSceneProgress, setActiveSectionId, activeSectionId } = useSceneStore();
 
   // Register a section element
   const registerSection = useCallback((id: SceneId, element: HTMLElement | null) => {
@@ -57,7 +62,8 @@ export default function SceneManager({ onEnter, onProgress }: SceneManagerProps)
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const sectionId = entry.target.id as SceneId;
-            if (sectionId && lastActiveSectionRef.current !== sectionId) {
+            // Skip pinned sections - ScrollTrigger handles them
+            if (sectionId && !PINNED_SECTIONS.includes(sectionId) && lastActiveSectionRef.current !== sectionId) {
               lastActiveSectionRef.current = sectionId;
               setActiveSectionId(sectionId);
               
@@ -76,14 +82,31 @@ export default function SceneManager({ onEnter, onProgress }: SceneManagerProps)
       }
     );
 
-    // Observe all registered sections
-    sectionsRef.current.forEach((element) => {
-      observerRef.current?.observe(element);
+    // Filter out pinned sections from observation (helper function, not used directly but kept for clarity)
+    const shouldObserveSection = (sectionId: SceneId) => {
+      return !PINNED_SECTIONS.includes(sectionId);
+    };
+
+    // Observe all registered sections (excluding pinned ones)
+    sectionsRef.current.forEach((element, sectionId) => {
+      if (!PINNED_SECTIONS.includes(sectionId)) {
+        observerRef.current?.observe(element);
+      }
     });
 
     // Scroll progress tracking with requestAnimationFrame
     const updateScrollProgress = () => {
-      const scrollY = window.scrollY;
+      // Note: We skip pinned sections in the loop below, so no need to check here
+
+      // Get scroll position from Lenis if available, otherwise use window.scrollY
+      let scrollY: number;
+      if (typeof window !== "undefined" && (window as any).lenis) {
+        // Lenis uses scroll property or scrollY
+        scrollY = (window as any).lenis.scroll || (window as any).lenis.scrollY || window.scrollY;
+      } else {
+        scrollY = window.scrollY;
+      }
+
       const viewportHeight = window.innerHeight;
 
       // Find the active section (one with most intersection)
@@ -92,6 +115,11 @@ export default function SceneManager({ onEnter, onProgress }: SceneManagerProps)
       let maxIntersection = 0;
 
       sectionsRef.current.forEach((element, sectionId) => {
+        // Skip pinned sections
+        if (PINNED_SECTIONS.includes(sectionId)) {
+          return;
+        }
+
         const rect = element.getBoundingClientRect();
         const elementTop = rect.top + scrollY;
         const elementBottom = elementTop + rect.height;
@@ -149,7 +177,7 @@ export default function SceneManager({ onEnter, onProgress }: SceneManagerProps)
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [onEnter, onProgress, setCurrentSceneId, setSceneProgress, setActiveSectionId, registerSection]);
+    }, [onEnter, onProgress, setCurrentSceneId, setSceneProgress, setActiveSectionId, registerSection]);
 
   // Expose registerSection via global or context - using a simpler approach
   useEffect(() => {

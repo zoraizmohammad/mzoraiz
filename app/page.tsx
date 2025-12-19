@@ -6,12 +6,14 @@ import Proof from "@/components/sections/Proof";
 import Notes from "@/components/sections/Notes";
 import Contact from "@/components/sections/Contact";
 import SceneManager from "@/components/scroll/SceneManager";
+import PinnedSections from "@/components/scroll/PinnedSections";
 import SectionWrapper from "@/components/sections/SectionWrapper";
 
 export default function Home() {
   return (
     <main>
       <SceneManager />
+      <PinnedSections />
       <SectionWrapper id="hero">
         <Hero />
       </SectionWrapper>

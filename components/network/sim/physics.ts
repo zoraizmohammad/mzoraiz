@@ -12,25 +12,29 @@ interface PhysicsConfig {
   springStrength?: number;
   damping?: number;
   anchorStrength?: number;
+  anchorStrengthMultiplier?: number; // Multiply anchor strength during transitions
   boundaryPadding?: number;
   boundaryStrength?: number;
   ambientDrift?: number;
   ambientWobble?: number;
   reducedMotion?: boolean;
   intensity?: number; // 0-1, for idle reduction
+  isTransitioning?: boolean; // If true, increase anchor force
 }
 
-const DEFAULT_CONFIG: Required<PhysicsConfig> = {
+const DEFAULT_CONFIG: Required<Omit<PhysicsConfig, 'anchorStrengthMultiplier' | 'isTransitioning'>> & { anchorStrengthMultiplier: number; isTransitioning: boolean } = {
   repulsionStrength: 0.02,
   springStrength: 0.001,
   damping: 0.95,
   anchorStrength: 0.0001, // Reduced anchor strength to allow more natural movement
+  anchorStrengthMultiplier: 1.0,
   boundaryPadding: 0.06, // 6% padding
   boundaryStrength: 0.01,
   ambientDrift: 0.0001,
   ambientWobble: 0.0002,
   reducedMotion: false,
   intensity: 1.0,
+  isTransitioning: false,
 };
 
 /**
@@ -147,10 +151,14 @@ function applyAnchors(
   nodes: GraphNode[],
   anchorPositions: Map<string, { x: number; y: number }>,
   strength: number,
-  intensity: number
+  intensity: number,
+  anchorStrengthMultiplier: number = 1.0,
+  isTransitioning: boolean = false
 ): void {
-  const effectiveStrength = strength * intensity;
-  const maxDrift = 100; // Only apply anchor force if node drifts more than this
+  // Increase anchor strength during transitions
+  const transitionMultiplier = isTransitioning ? 3.0 : 1.0;
+  const effectiveStrength = strength * intensity * anchorStrengthMultiplier * transitionMultiplier;
+  const maxDrift = isTransitioning ? 10 : 100; // Tighter constraint during transitions
 
   nodes.forEach((node) => {
     if (node.fixed) return;
@@ -162,9 +170,9 @@ function applyAnchors(
     const dy = anchor.y - node.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // Only apply anchor force if node has drifted significantly
-    if (distance > maxDrift) {
-      const force = effectiveStrength * (distance - maxDrift);
+    // During transitions, always apply force; otherwise only if drifted significantly
+    if (isTransitioning || distance > maxDrift) {
+      const force = effectiveStrength * (isTransitioning ? distance : (distance - maxDrift));
       node.vx += (dx / distance) * force / node.mass;
       node.vy += (dy / distance) * force / node.mass;
     }
@@ -285,7 +293,14 @@ export function stepPhysics(
   applySprings(scene, width, height, finalConfig.springStrength, finalConfig.intensity);
   
   if (anchorPositions) {
-    applyAnchors(scene.nodes, anchorPositions, finalConfig.anchorStrength, finalConfig.intensity);
+    applyAnchors(
+      scene.nodes,
+      anchorPositions,
+      finalConfig.anchorStrength,
+      finalConfig.intensity,
+      finalConfig.anchorStrengthMultiplier ?? 1.0,
+      finalConfig.isTransitioning ?? false
+    );
   }
   
   applyBoundaries(scene.nodes, bounds, finalConfig.boundaryStrength, finalConfig.intensity);
