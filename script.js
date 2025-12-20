@@ -159,15 +159,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 storedPositions.set(eyeEl, { left: currentLeft, top: currentTop });
             });
             
+            // Toggle theme immediately on click
+            toggleTheme();
+            
             // Add squinting class to both eyes
             eyesForClick.forEach(e => {
                 e.classList.add('squinting');
             });
-            
-            // Toggle theme at the peak of the squint (middle of animation)
-            setTimeout(() => {
-                toggleTheme();
-            }, 300); // Halfway through the 0.6s animation
             
             // Remove squinting class and restore positions after animation completes
             setTimeout(() => {
@@ -180,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         eyeEl.style.setProperty('--eye-position-vertical', positions.top);
                     }
                 });
-            }, 600); // After animation completes
+            }, 2500); // After animation completes (2.5 seconds)
         });
     });
 });

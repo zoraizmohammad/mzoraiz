@@ -93,11 +93,11 @@ body {
 
 /* Squinting animation */
 .eye-toggle.squinting {
-    animation: squint 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: squint 2.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .eye-toggle.squinting::after {
-    animation: squintPupil 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: squintPupil 2.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes squint {
@@ -116,22 +116,24 @@ body {
     0% {
         width: 3vw;
         height: 3vw;
+        left: 1.5vw;
     }
     50% {
         width: 1.5vw;
         height: 1.5vw;
+        left: 4.5vw;
     }
     100% {
         width: 3vw;
         height: 3vw;
+        left: 1.5vw;
     }
 }
 
-/* During squint, move pupil to safe left position and center vertically */
+/* During squint, center vertically and animate horizontally */
 .eye-toggle.squinting::after {
-    left: 1.5vw !important;
     top: 1vw !important;
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.6s cubic-bezier(0.4, 0, 0.2, 1), height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: squintPupil 2.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .eye-toggle::after {
