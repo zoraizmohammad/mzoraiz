@@ -43,38 +43,69 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Synchronous eye movement - both eyes look around together
+    // Synchronous eye movement - both eyes look around together (left/right and up/down)
     const eyes = document.querySelectorAll('.eye-toggle');
     if (eyes.length === 2) {
-        // Calculate the range of movement (from left edge to right edge)
-        // The eye bar is 6vw wide, circle is 3vw, so it can move from 0.5vw to (6vw - 3vw - 0.5vw) = 2.5vw
+        // Calculate the range of horizontal movement
+        // The eye bar is 6vw wide, circle is 3vw wide
+        // With transform translate(-50%, -50%), left represents the CENTER position
+        // Center can be from 1.5vw (left edge at 0) to 4.5vw (right edge at 6vw)
+        // With padding of 0.5vw, center can be from 2vw to 4vw
         const eyeBarWidth = 6; // 6vw
         const circleWidth = 3; // 3vw
-        const padding = 0.5; // 0.5vw padding
-        const maxLeft = padding;
-        const maxRight = eyeBarWidth - circleWidth - padding; // 2.5vw
+        const padding = 0.5; // 0.5vw padding from edges
+        const maxLeft = circleWidth / 2 + padding; // 2vw (center position for left edge at 0.5vw)
+        const maxRight = eyeBarWidth - circleWidth / 2 - padding; // 4vw (center position for right edge at 5.5vw)
+        
+        // Calculate the range of vertical movement
+        // The eye bar is 8vw tall, circle is 3vw tall
+        // With transform translate(-50%, -50%), top represents the CENTER position
+        // Center can be from 1.5vw (top edge at 0) to 6.5vw (bottom edge at 8vw)
+        // With padding of 0.5vw, center can be from 2vw to 6vw
+        const eyeBarHeight = 8; // 8vw
+        const circleHeight = 3; // 3vw
+        const maxTop = circleHeight / 2 + padding; // 2vw (center position for top edge at 0.5vw)
+        const maxBottom = eyeBarHeight - circleHeight / 2 - padding; // 6vw (center position for bottom edge at 7.5vw)
         
         function moveEyesTogether() {
-            // Avoid the middle - split into left and right zones
-            const middleStart = 1.2; // Start of middle zone to avoid
-            const middleEnd = 1.8;   // End of middle zone to avoid
-            const totalRange = maxRight - maxLeft; // 2.0vw total range
+            // Horizontal: Avoid the middle - split into left and right zones
+            // Middle is around 3vw (center of 6vw bar)
+            const middleStartH = 2.5; // Start of middle zone to avoid horizontally
+            const middleEndH = 3.5;   // End of middle zone to avoid horizontally
             
             // Randomly choose left or right side
             const chooseLeft = Math.random() < 0.5;
             
             let leftPosition;
             if (chooseLeft) {
-                // Left side: from maxLeft (0.5vw) to middleStart (1.2vw)
-                leftPosition = maxLeft + Math.random() * (middleStart - maxLeft);
+                // Left side: from maxLeft (2vw) to middleStart (2.5vw)
+                leftPosition = maxLeft + Math.random() * (middleStartH - maxLeft);
             } else {
-                // Right side: from middleEnd (1.8vw) to maxRight (2.5vw)
-                leftPosition = middleEnd + Math.random() * (maxRight - middleEnd);
+                // Right side: from middleEnd (3.5vw) to maxRight (4vw)
+                leftPosition = middleEndH + Math.random() * (maxRight - middleEndH);
             }
             
-            // Move both eyes to the same position simultaneously using CSS custom property
+            // Vertical: Avoid the middle - split into top and bottom zones
+            // Middle is around 4vw (center of 8vw bar)
+            const middleStartV = 3.5; // Start of middle zone to avoid vertically
+            const middleEndV = 4.5;   // End of middle zone to avoid vertically
+            
+            // Randomly choose top or bottom
+            const chooseTop = Math.random() < 0.5;
+            
+            let topPosition;
+            if (chooseTop) {
+                // Top side: from maxTop (2vw) to middleStart (3.5vw)
+                topPosition = maxTop + Math.random() * (middleStartV - maxTop);
+            } else {
+                // Bottom side: from middleEnd (4.5vw) to maxBottom (6vw)
+                topPosition = middleEndV + Math.random() * (maxBottom - middleEndV);
+            }
+            
+            // Move both eyes to the same position simultaneously using CSS custom properties
             eyes.forEach(eye => {
                 eye.style.setProperty('--eye-position', `${leftPosition}vw`);
+                eye.style.setProperty('--eye-position-vertical', `${topPosition}vw`);
             });
             
             // Schedule next movement with random delay (0.8s to 3s) for spontaneous movement
