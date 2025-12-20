@@ -50,15 +50,16 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    overflow: hidden;
-    height: 100vh;
+    overflow-x: hidden;
     background: var(--bg);
     transition: background 0.3s ease;
+    min-height: 100vh;
 }
 
 .hero-container {
     position: relative;
     width: 100vw;
+    min-height: 100vh;
     height: 100vh;
     display: flex;
     align-items: center;
@@ -319,6 +320,191 @@ body {
     
     .question-mark {
         opacity: 0.3;
+    }
+}
+
+/* Expandable Sections */
+.sections-container {
+    position: relative;
+    z-index: 5;
+    width: 100%;
+}
+
+.expandable-section {
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+}
+
+.expandable-section:hover {
+    background: var(--surface);
+}
+
+.section-header {
+    padding: 80px 40px;
+    text-align: center;
+    transition: padding 0.3s ease;
+}
+
+.section-title {
+    font-family: 'Garnet Capitals', sans-serif;
+    font-size: 8vw;
+    font-weight: 900;
+    color: var(--text-primary);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: color 0.3s ease, font-size 0.3s ease;
+    user-select: none;
+}
+
+.expandable-section.expanded .section-title {
+    font-size: 6vw;
+}
+
+.section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--surface);
+}
+
+.expandable-section.expanded .section-content {
+    max-height: 2000px;
+}
+
+.section-inner {
+    padding: 60px 40px;
+    color: var(--text-primary);
+    font-family: 'Beckman Free', sans-serif;
+    font-size: 12px;
+    line-height: 1.8;
+    transition: color 0.3s ease;
+}
+
+/* Contact Section */
+.contact-section {
+    width: 100%;
+    padding: 80px 40px;
+    text-align: center;
+    background: var(--bg);
+}
+
+.contact-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+}
+
+.social-links {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    justify-content: center;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.social-link:hover {
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
+.social-icon {
+    font-family: 'Garnet Capitals', sans-serif;
+    font-size: 3vw;
+    font-weight: 900;
+    color: inherit;
+}
+
+.github-icon {
+    width: 3vw;
+    height: 3vw;
+    fill: currentColor;
+}
+
+.email-link {
+    font-family: 'Beckman Free', sans-serif;
+    font-size: 14px;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.email-link:hover {
+    color: var(--accent);
+}
+
+/* Responsive for sections */
+@media (max-width: 768px) {
+    .section-header {
+        padding: 50px 20px;
+    }
+    
+    .section-title {
+        font-size: 12vw;
+    }
+    
+    .expandable-section.expanded .section-title {
+        font-size: 10vw;
+    }
+    
+    .section-inner {
+        padding: 40px 20px;
+        font-size: 11px;
+    }
+    
+    .contact-section {
+        padding: 50px 20px;
+    }
+    
+    .contact-content {
+        gap: 30px;
+    }
+    
+    .social-links {
+        gap: 40px;
+    }
+    
+    .social-icon {
+        font-size: 6vw;
+    }
+    
+    .github-icon {
+        width: 6vw;
+        height: 6vw;
+    }
+    
+    .email-link {
+        font-size: 12px;
+    }
+}
+
+/* Copyright Footer */
+.copyright-footer {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-secondary);
+    font-family: 'Beckman Free', sans-serif;
+    font-size: 10px;
+    opacity: 0.6;
+    transition: color 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .copyright-footer {
+        font-size: 9px;
+        padding: 20px 15px;
     }
 }
 

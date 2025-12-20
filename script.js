@@ -507,3 +507,33 @@ function initFloatingQuestionMarks() {
     });
 }
 
+// Expandable sections functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const sections = document.querySelectorAll('.expandable-section');
+    
+    sections.forEach(section => {
+        const header = section.querySelector('.section-header');
+        
+        header.addEventListener('click', () => {
+            const isExpanded = section.classList.contains('expanded');
+            
+            // Close all sections
+            sections.forEach(s => s.classList.remove('expanded'));
+            
+            // Toggle current section (open if it wasn't expanded)
+            if (!isExpanded) {
+                section.classList.add('expanded');
+                
+                // Smooth scroll to section
+                setTimeout(() => {
+                    section.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                }, 100);
+            }
+        });
+    });
+});
+
