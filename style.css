@@ -1,3 +1,20 @@
+@font-face {
+    font-family: 'Garnet Capitals';
+    src: url('public/fonts/garnet-capitals-regular.eot');
+    src: url('public/fonts/garnet-capitals-regular.eot?#iefix') format('embedded-opentype'),
+         url('public/fonts/garnet-capitals-regular.woff2') format('woff2'),
+         url('public/fonts/garnet-capitals-regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Beckman Free';
+    src: url('public/fonts/Beckman Free.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -68,11 +85,23 @@ body {
 }
 
 .letter {
+    font-family: 'Garnet Capitals', sans-serif;
     font-size: 8vw;
     font-weight: 900;
     color: var(--text-primary);
     line-height: 1;
     letter-spacing: 0.02em;
+    transition: color 0.3s ease;
+}
+
+.subtitle {
+    font-family: 'Beckman Free', sans-serif;
+    font-size: 2.5vw;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--text-primary);
+    letter-spacing: 0.08em;
+    margin-top: 30px;
     transition: color 0.3s ease;
 }
 
@@ -177,6 +206,7 @@ body {
 }
 
 .scroll-item {
+    font-family: 'Beckman Free', sans-serif;
     color: var(--wheel-text);
     font-size: 14px;
     font-weight: 500;
@@ -258,6 +288,11 @@ body {
     
     .scroll-item {
         font-size: 12px;
+    }
+    
+    .subtitle {
+        font-size: 5vw;
+        margin-top: 20px;
     }
 }
 
