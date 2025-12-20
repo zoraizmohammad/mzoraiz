@@ -24,125 +24,238 @@ initTheme();
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    // Setup scroll wheel with seamless looping
-    const scrollWheel = document.getElementById('scrollWheel');
-    if (scrollWheel) {
-        // Get all children (items and dots)
-        const allChildren = Array.from(scrollWheel.children);
+    // Create constellation of questions
+    const constellation = document.getElementById('questionsConstellation');
+    const questions = [];
+    let availableQuestions = [...questionsData];
+    let currentTopQuestion = null;
+    let currentBottomQuestion = null;
+    
+    // Create all question elements (hidden by default)
+    questionsData.forEach((qData, index) => {
+        const questionEl = document.createElement('div');
+        questionEl.className = 'question-element';
         
-        // Clone all children (items + dots) for seamless infinite scroll
-        // We need to clone the entire set multiple times for smooth continuous scrolling
-        allChildren.forEach(child => {
-            const clone = child.cloneNode(true);
-            scrollWheel.appendChild(clone);
+        questionEl.innerHTML = `
+            <div class="question-symbol">${qData.symbol}</div>
+            <div class="question-reveal">
+                <div class="reveal-section">
+                    <div class="reveal-label">Question</div>
+                    <div class="reveal-content">${qData.question}</div>
+                </div>
+                <div class="reveal-section">
+                    <div class="reveal-label">Origin</div>
+                    <div class="reveal-content">${qData.origin}</div>
+                </div>
+                <div class="reveal-section">
+                    <div class="reveal-label">Work</div>
+                    <ul class="reveal-list">
+                        ${qData.work.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="reveal-section">
+                    <div class="reveal-label">Next</div>
+                    <div class="reveal-content">${qData.next}</div>
+                </div>
+            </div>
+        `;
+        
+        constellation.appendChild(questionEl);
+        questions.push({
+            element: questionEl,
+            symbol: questionEl.querySelector('.question-symbol'),
+            data: qData,
+            index: index
         });
         
-        // Clone again to ensure seamless loop
-        allChildren.forEach(child => {
-            const clone = child.cloneNode(true);
-            scrollWheel.appendChild(clone);
-        });
-    }
-    
-    // Match banner width to MOHAMMAD name-line width (after scroll wheel is set up)
-    function setBannerWidth() {
-        const nameLines = document.querySelectorAll('.name-line');
-        const banner = document.querySelector('.banner');
-        
-        if (nameLines.length > 0 && banner) {
-            // Use the first name-line (MOHAMMAD) to match width
-            const mohammadLine = nameLines[0];
-            const mohammadWidth = mohammadLine.offsetWidth;
+        // Click handler for expand/collapse
+        questionEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isExpanded = questionEl.classList.contains('expanded');
             
-            // Set banner width to match
-            banner.style.width = mohammadWidth + 'px';
-        }
-    }
-    
-    // Set banner width after a short delay to ensure DOM is ready
-    setTimeout(setBannerWidth, 100);
-    
-    // Update on window resize
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(setBannerWidth, 100);
-    });
-    
-    // Synchronous eye movement - both eyes look around together (left/right and up/down)
-    const eyesForMovement = document.querySelectorAll('.eye-toggle');
-    if (eyesForMovement.length === 2) {
-        // Calculate the range of horizontal movement
-        // The eye bar is 6vw wide, circle is 3vw wide
-        // With transform translate(-50%, -50%), left represents the CENTER position
-        // To keep circle within bar: center must be between 1.5vw (left edge at 0) and 4.5vw (right edge at 6vw)
-        // With padding of 0.75vw, center can be from 2.25vw to 3.75vw
-        const eyeBarWidth = 6; // 6vw
-        const circleWidth = 3; // 3vw
-        const padding = 0.75; // 0.75vw padding from edges (increased to prevent overflow)
-        const maxLeft = circleWidth / 2 + padding; // 2.25vw (center position for left edge at 0.75vw)
-        const maxRight = eyeBarWidth - circleWidth / 2 - padding; // 3.75vw (center position for right edge at 5.25vw)
-        
-        // Calculate the range of vertical movement
-        // The eye bar is 8vw tall, circle is 3vw tall
-        // With transform translate(-50%, -50%), top represents the CENTER position
-        // Center can be from 1.5vw (top edge at 0) to 6.5vw (bottom edge at 8vw)
-        // With padding of 0.75vw, center can be from 2.25vw to 5.75vw
-        const eyeBarHeight = 8; // 8vw
-        const circleHeight = 3; // 3vw
-        const verticalPadding = 0.75; // 0.75vw padding from edges
-        const maxTop = circleHeight / 2 + verticalPadding; // 2.25vw (center position for top edge at 0.75vw)
-        const maxBottom = eyeBarHeight - circleHeight / 2 - verticalPadding; // 5.75vw (center position for bottom edge at 7.25vw)
-        
-        function moveEyesTogether() {
-            // Horizontal: Avoid the middle - split into left and right zones
-            // Middle is around 3vw (center of 6vw bar)
-            const middleStartH = 2.75; // Start of middle zone to avoid horizontally
-            const middleEndH = 3.25;   // End of middle zone to avoid horizontally
-            
-            // Randomly choose left or right side
-            const chooseLeft = Math.random() < 0.5;
-            
-            let leftPosition;
-            if (chooseLeft) {
-                // Left side: from maxLeft (2.25vw) to middleStart (2.75vw)
-                leftPosition = maxLeft + Math.random() * (middleStartH - maxLeft);
-            } else {
-                // Right side: from middleEnd (3.25vw) to maxRight (3.75vw)
-                leftPosition = middleEndH + Math.random() * (maxRight - middleEndH);
-            }
-            
-            // Vertical: Avoid the middle - split into top and bottom zones
-            // Middle is around 4vw (center of 8vw bar)
-            const middleStartV = 3.5; // Start of middle zone to avoid vertically
-            const middleEndV = 4.5;   // End of middle zone to avoid vertically
-            
-            // Randomly choose top or bottom
-            const chooseTop = Math.random() < 0.5;
-            
-            let topPosition;
-            if (chooseTop) {
-                // Top side: from maxTop (2.25vw) to middleStart (3.5vw)
-                topPosition = maxTop + Math.random() * (middleStartV - maxTop);
-            } else {
-                // Bottom side: from middleEnd (4.5vw) to maxBottom (5.75vw)
-                topPosition = middleEndV + Math.random() * (maxBottom - middleEndV);
-            }
-            
-            // Move both eyes to the same position simultaneously using CSS custom properties
-            eyesForMovement.forEach(eye => {
-                eye.style.setProperty('--eye-position', `${leftPosition}vw`);
-                eye.style.setProperty('--eye-position-vertical', `${topPosition}vw`);
+            // Close all other questions
+            questions.forEach(q => {
+                q.element.classList.remove('expanded', 'active');
             });
             
-            // Schedule next movement with random delay (0.8s to 3s) for spontaneous movement
-            const nextDelay = 800 + Math.random() * 2200;
-            setTimeout(moveEyesTogether, nextDelay);
+            // Toggle this question
+            if (!isExpanded) {
+                questionEl.classList.add('expanded', 'active');
+            }
+        });
+        
+        // Hover handler
+        questionEl.addEventListener('mouseenter', () => {
+            questionEl.classList.add('active');
+        });
+        
+        questionEl.addEventListener('mouseleave', () => {
+            questionEl.classList.remove('active');
+        });
+    });
+    
+    // Function to get a random question that's not currently shown
+    function getRandomQuestion(excludeIndices = []) {
+        const available = questions.filter(q => !excludeIndices.includes(q.index));
+        if (available.length === 0) {
+            // If all questions are shown, reset
+            return questions[Math.floor(Math.random() * questions.length)];
+        }
+        return available[Math.floor(Math.random() * available.length)];
+    }
+    
+    // Function to show a question sliding across
+    function showQuestion(question, isTop) {
+        // Remove any existing classes
+        question.element.classList.remove('visible', 'top-row', 'bottom-row', 'expanded', 'active');
+        
+        // Add appropriate row class
+        question.element.classList.add(isTop ? 'top-row' : 'bottom-row');
+        
+        // Reset animation
+        question.element.style.animation = 'none';
+        void question.element.offsetWidth; // Trigger reflow
+        
+        // Show and animate
+        question.element.classList.add('visible');
+        question.element.style.animation = isTop ? 'slideAcrossTop 8s ease-in-out' : 'slideAcrossBottom 8s ease-in-out';
+        
+        // Hide after animation
+        setTimeout(() => {
+            question.element.classList.remove('visible', 'top-row', 'bottom-row');
+        }, 8000);
+    }
+    
+    // Function to cycle through questions
+    function cycleQuestions() {
+        // Hide current questions
+        if (currentTopQuestion) {
+            currentTopQuestion.element.classList.remove('visible');
+        }
+        if (currentBottomQuestion) {
+            currentBottomQuestion.element.classList.remove('visible');
         }
         
-        // Start the eye movement after a short delay
-        setTimeout(moveEyesTogether, 1000 + Math.random() * 1000);
+        // Get new random questions
+        const excludeIndices = [];
+        if (currentTopQuestion) excludeIndices.push(currentTopQuestion.index);
+        if (currentBottomQuestion) excludeIndices.push(currentBottomQuestion.index);
+        
+        currentTopQuestion = getRandomQuestion(excludeIndices);
+        currentBottomQuestion = getRandomQuestion([...excludeIndices, currentTopQuestion.index]);
+        
+        // Show top question immediately
+        showQuestion(currentTopQuestion, true);
+        
+        // Show bottom question with stagger (2-4 seconds delay)
+        const staggerDelay = 2000 + Math.random() * 2000;
+        setTimeout(() => {
+            showQuestion(currentBottomQuestion, false);
+        }, staggerDelay);
+        
+        // Schedule next cycle (after both animations complete + gap)
+        const nextCycleDelay = 10000 + Math.random() * 5000; // 10-15 seconds
+        setTimeout(cycleQuestions, nextCycleDelay);
     }
+    
+    // Start cycling questions
+    setTimeout(cycleQuestions, 1000); // Initial delay
+    
+    // Eye tracking logic
+    let currentTarget = null;
+    let eyeTrackingTimeout = null;
+    
+    function trackQuestion(questionEl) {
+        if (currentTarget === questionEl) return;
+        
+        currentTarget = questionEl;
+        const rect = questionEl.getBoundingClientRect();
+        const symbolRect = questionEl.querySelector('.question-symbol').getBoundingClientRect();
+        
+        // Calculate position relative to viewport center
+        const viewportCenterX = window.innerWidth / 2;
+        const viewportCenterY = window.innerHeight / 2;
+        
+        // Get symbol center position
+        const symbolCenterX = symbolRect.left + symbolRect.width / 2;
+        const symbolCenterY = symbolRect.top + symbolRect.height / 2;
+        
+        // Calculate offset from viewport center
+        const offsetX = symbolCenterX - viewportCenterX;
+        const offsetY = symbolCenterY - viewportCenterY;
+        
+        // Convert to vw/vh units for eye positioning
+        // Eye bar is 6vw wide, so we need to map offset to eye position
+        const eyeBarWidth = 6; // 6vw
+        const eyeBarHeight = 8; // 8vw
+        const circleWidth = 3; // 3vw
+        const padding = 0.75; // 0.75vw
+        
+        // Map viewport offset to eye position (normalized to -1 to 1, then to eye range)
+        const normalizedX = Math.max(-1, Math.min(1, offsetX / (window.innerWidth * 0.3)));
+        const normalizedY = Math.max(-1, Math.min(1, offsetY / (window.innerHeight * 0.3)));
+        
+        // Convert to eye position (2.25vw to 3.75vw for X, 2.25vw to 5.75vw for Y)
+        const maxLeft = circleWidth / 2 + padding; // 2.25vw
+        const maxRight = eyeBarWidth - circleWidth / 2 - padding; // 3.75vw
+        const maxTop = circleWidth / 2 + padding; // 2.25vw
+        const maxBottom = eyeBarHeight - circleWidth / 2 - padding; // 5.75vw
+        
+        const leftPosition = maxLeft + (normalizedX + 1) / 2 * (maxRight - maxLeft);
+        const topPosition = maxTop + (normalizedY + 1) / 2 * (maxBottom - maxTop);
+        
+        // Move eyes with slight delay (feels thoughtful)
+        const eyes = document.querySelectorAll('.eye-toggle');
+        eyes.forEach(eye => {
+            eye.style.setProperty('--eye-position', `${leftPosition}vw`);
+            eye.style.setProperty('--eye-position-vertical', `${topPosition}vw`);
+        });
+    }
+    
+    function resetEyes() {
+        currentTarget = null;
+        const eyes = document.querySelectorAll('.eye-toggle');
+        // Return to center/neutral position
+        eyes.forEach(eye => {
+            eye.style.setProperty('--eye-position', '3vw');
+            eye.style.setProperty('--eye-position-vertical', '4vw');
+        });
+    }
+    
+    // Track questions on hover (only if visible)
+    questions.forEach(({ element }) => {
+        element.addEventListener('mouseenter', () => {
+            if (element.classList.contains('visible')) {
+                clearTimeout(eyeTrackingTimeout);
+                setTimeout(() => {
+                    trackQuestion(element);
+                }, 200); // Slight delay before tracking
+            }
+        });
+        
+        element.addEventListener('mouseleave', () => {
+            clearTimeout(eyeTrackingTimeout);
+            eyeTrackingTimeout = setTimeout(() => {
+                resetEyes();
+            }, 500); // Delay before resetting
+        });
+    });
+    
+    // Click outside to close expanded questions
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.question-element')) {
+            questions.forEach(q => {
+                q.element.classList.remove('expanded', 'active');
+            });
+        }
+    });
+    
+    // Initialize eyes to center/neutral position (rest position)
+    const eyesForMovement = document.querySelectorAll('.eye-toggle');
+    eyesForMovement.forEach(eye => {
+        eye.style.setProperty('--eye-position', '3vw');
+        eye.style.setProperty('--eye-position-vertical', '4vw');
+    });
     
     // Click to toggle theme (dark/light) with squinting effect
     const eyesForClick = document.querySelectorAll('.eye-toggle');
