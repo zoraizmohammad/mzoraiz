@@ -181,5 +181,329 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 2500); // After animation completes (2.5 seconds)
         });
     });
+    
+    // Floating question marks animation
+    initFloatingQuestionMarks();
 });
+
+// Floating question marks system
+function initFloatingQuestionMarks() {
+    const container = document.getElementById('questionMarksContainer');
+    if (!container) return;
+    
+    const heroContent = document.querySelector('.hero-content');
+    if (!heroContent) return;
+    
+    const questionMarks = [];
+    const numMarks = 40; // Number of question marks
+    const minSize = 20; // Minimum font size in pixels
+    const maxSize = 60; // Maximum font size in pixels
+    const minSpeed = 0.3; // Minimum speed (increased)
+    const maxSpeed = 0.8; // Maximum speed (increased)
+    const padding = 100; // Padding around content to avoid
+    
+    // Get content bounds for even distribution
+    const heroRect = heroContent.getBoundingClientRect();
+    const contentLeft = heroRect.left - padding;
+    const contentRight = heroRect.right + padding;
+    const contentTop = heroRect.top - padding;
+    const contentBottom = heroRect.bottom + padding;
+    
+    // Function to check if position is valid (not in content area and not overlapping other marks)
+    function isValidPosition(x, y, size, existingMarks) {
+        const centerX = x + size / 2;
+        const centerY = y + size / 2;
+        
+        // Check content area
+        if (centerX > contentLeft && centerX < contentRight &&
+            centerY > contentTop && centerY < contentBottom) {
+            return false;
+        }
+        
+        // Check overlap with existing marks
+        for (const existing of existingMarks) {
+            const existingCenterX = existing.x + existing.size / 2;
+            const existingCenterY = existing.y + existing.size / 2;
+            const distance = Math.sqrt(
+                Math.pow(centerX - existingCenterX, 2) + 
+                Math.pow(centerY - existingCenterY, 2)
+            );
+            const minDistance = (size + existing.size) / 2 + 10; // Minimum distance between marks
+            if (distance < minDistance) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    // Function to get random position in a zone around content
+    function getRandomPositionInZone(zone, size, existingMarks) {
+        const edgePadding = 30;
+        let minX, maxX, minY, maxY;
+        
+        // Define zones around content: top, bottom, left, right
+        switch(zone) {
+            case 0: // Top zone
+                minX = edgePadding;
+                maxX = window.innerWidth - edgePadding;
+                minY = edgePadding;
+                maxY = contentTop - 20;
+                break;
+            case 1: // Bottom zone
+                minX = edgePadding;
+                maxX = window.innerWidth - edgePadding;
+                minY = contentBottom + 20;
+                maxY = window.innerHeight - edgePadding;
+                break;
+            case 2: // Left zone
+                minX = edgePadding;
+                maxX = contentLeft - 20;
+                minY = contentTop - 20;
+                maxY = contentBottom + 20;
+                break;
+            case 3: // Right zone
+                minX = contentRight + 20;
+                maxX = window.innerWidth - edgePadding;
+                minY = contentTop - 20;
+                maxY = contentBottom + 20;
+                break;
+        }
+        
+        // Ensure valid bounds
+        if (maxX <= minX || maxY <= minY) {
+            // Fallback to random position anywhere
+            return {
+                x: edgePadding + Math.random() * (window.innerWidth - edgePadding * 2 - size),
+                y: edgePadding + Math.random() * (window.innerHeight - edgePadding * 2 - size)
+            };
+        }
+        
+        // Try random positions in this zone until we find a valid one
+        for (let attempt = 0; attempt < 100; attempt++) {
+            const x = minX + Math.random() * (maxX - minX - size);
+            const y = minY + Math.random() * (maxY - minY - size);
+            
+            if (isValidPosition(x, y, size, existingMarks)) {
+                return { x, y };
+            }
+        }
+        
+        // Fallback: return a position at the edge
+        return {
+            x: Math.max(edgePadding, Math.min(window.innerWidth - size - edgePadding, minX + Math.random() * (maxX - minX - size))),
+            y: Math.max(edgePadding, Math.min(window.innerHeight - size - edgePadding, minY + Math.random() * (maxY - minY - size)))
+        };
+    }
+    
+    // Distribute question marks evenly across zones (top, bottom, left, right) with random positions
+    const marksPerZone = Math.floor(numMarks / 4);
+    const remaining = numMarks % 4;
+    
+    // Create question marks
+    for (let i = 0; i < numMarks; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'question-mark';
+        mark.textContent = '?';
+        
+        // Random size
+        const size = minSize + Math.random() * (maxSize - minSize);
+        mark.style.fontSize = `${size}px`;
+        
+        // Determine which zone this mark should be in (top, bottom, left, right)
+        let zone;
+        if (i < marksPerZone) {
+            zone = 0; // Top
+        } else if (i < marksPerZone * 2) {
+            zone = 1; // Bottom
+        } else if (i < marksPerZone * 3) {
+            zone = 2; // Left
+        } else if (i < marksPerZone * 4) {
+            zone = 3; // Right
+        } else {
+            // Remaining marks distributed randomly
+            zone = Math.floor(Math.random() * 4);
+        }
+        
+        // Get random position in zone, avoiding overlaps
+        const position = getRandomPositionInZone(zone, size, questionMarks);
+        const x = position.x;
+        const y = position.y;
+        
+        mark.style.left = `${x}px`;
+        mark.style.top = `${y}px`;
+        
+        // Random velocity
+        const angle = Math.random() * Math.PI * 2;
+        const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        // Add random direction change timer for each mark
+        const directionChangeInterval = 2000 + Math.random() * 3000; // 2-5 seconds
+        
+        questionMarks.push({
+            element: mark,
+            x: x,
+            y: y,
+            vx: vx,
+            vy: vy,
+            size: size,
+            lastDirectionChange: Date.now(),
+            directionChangeInterval: directionChangeInterval
+        });
+        
+        container.appendChild(mark);
+    }
+    
+    // Animation loop
+    function animate() {
+        const heroRect = heroContent.getBoundingClientRect();
+        const currentContentLeft = heroRect.left - padding;
+        const currentContentRight = heroRect.right + padding;
+        const currentContentTop = heroRect.top - padding;
+        const currentContentBottom = heroRect.bottom + padding;
+        
+        questionMarks.forEach(mark => {
+            // Periodic random direction changes for more chaotic movement
+            const now = Date.now();
+            if (now - mark.lastDirectionChange > mark.directionChangeInterval) {
+                // Randomly change direction
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
+                mark.vx = Math.cos(angle) * speed;
+                mark.vy = Math.sin(angle) * speed;
+                mark.lastDirectionChange = now;
+                mark.directionChangeInterval = 1500 + Math.random() * 2500; // 1.5-4 seconds
+            }
+            
+            // Update position
+            mark.x += mark.vx;
+            mark.y += mark.vy;
+            
+            // Boundary collision (bounce off edges)
+            if (mark.x <= 0 || mark.x >= window.innerWidth - mark.size) {
+                mark.vx *= -1.2; // Add some bounce energy
+                mark.x = Math.max(0, Math.min(window.innerWidth - mark.size, mark.x));
+            }
+            
+            if (mark.y <= 0 || mark.y >= window.innerHeight - mark.size) {
+                mark.vy *= -1.2; // Add some bounce energy
+                mark.y = Math.max(0, Math.min(window.innerHeight - mark.size, mark.y));
+            }
+            
+            // Content area collision detection (bounce away from main content)
+            const markCenterX = mark.x + mark.size / 2;
+            const markCenterY = mark.y + mark.size / 2;
+            
+            // Check if mark is too close to content
+            if (markCenterX > currentContentLeft && markCenterX < currentContentRight &&
+                markCenterY > currentContentTop && markCenterY < currentContentBottom) {
+                
+                // Calculate direction away from content center
+                const contentCenterX = (currentContentLeft + currentContentRight) / 2;
+                const contentCenterY = (currentContentTop + currentContentBottom) / 2;
+                
+                const dx = markCenterX - contentCenterX;
+                const dy = markCenterY - contentCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    // Normalize and apply repulsion
+                    const repulsionStrength = 0.5;
+                    mark.vx += (dx / distance) * repulsionStrength;
+                    mark.vy += (dy / distance) * repulsionStrength;
+                    
+                    // Limit velocity (increased)
+                    const maxVel = 1.0;
+                    const vel = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
+                    if (vel > maxVel) {
+                        mark.vx = (mark.vx / vel) * maxVel;
+                        mark.vy = (mark.vy / vel) * maxVel;
+                    }
+                }
+            }
+            
+            // Collision detection with other question marks
+            questionMarks.forEach(otherMark => {
+                if (mark === otherMark) return;
+                
+                const markCenterX = mark.x + mark.size / 2;
+                const markCenterY = mark.y + mark.size / 2;
+                const otherCenterX = otherMark.x + otherMark.size / 2;
+                const otherCenterY = otherMark.y + otherMark.size / 2;
+                
+                const dx = markCenterX - otherCenterX;
+                const dy = markCenterY - otherCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const minDistance = (mark.size + otherMark.size) / 2;
+                
+                // If marks are overlapping or too close
+                if (distance < minDistance && distance > 0) {
+                    // Calculate collision response (elastic collision)
+                    const angle = Math.atan2(dy, dx);
+                    const sin = Math.sin(angle);
+                    const cos = Math.cos(angle);
+                    
+                    // Rotate velocities
+                    const vx1 = mark.vx * cos + mark.vy * sin;
+                    const vy1 = mark.vy * cos - mark.vx * sin;
+                    const vx2 = otherMark.vx * cos + otherMark.vy * sin;
+                    const vy2 = otherMark.vy * cos - otherMark.vx * sin;
+                    
+                    // Swap velocities (elastic collision)
+                    const tempVx = vx1;
+                    const finalVx1 = vx2;
+                    const finalVx2 = tempVx;
+                    
+                    // Rotate back
+                    mark.vx = finalVx1 * cos - vy1 * sin;
+                    mark.vy = vy1 * cos + finalVx1 * sin;
+                    otherMark.vx = finalVx2 * cos - vy2 * sin;
+                    otherMark.vy = vy2 * cos + finalVx2 * sin;
+                    
+                    // Separate marks to prevent overlap
+                    const overlap = minDistance - distance;
+                    const separationX = (dx / distance) * overlap * 0.5;
+                    const separationY = (dy / distance) * overlap * 0.5;
+                    
+                    mark.x += separationX;
+                    mark.y += separationY;
+                    otherMark.x -= separationX;
+                    otherMark.y -= separationY;
+                }
+            });
+            
+            // Apply more random drift for chaotic movement
+            mark.vx += (Math.random() - 0.5) * 0.05;
+            mark.vy += (Math.random() - 0.5) * 0.05;
+            
+            // Less damping to keep them moving more
+            mark.vx *= 0.995;
+            mark.vy *= 0.995;
+            
+            // Update element position
+            mark.element.style.left = `${mark.x}px`;
+            mark.element.style.top = `${mark.y}px`;
+        });
+        
+        requestAnimationFrame(animate);
+    }
+    
+    // Start animation
+    animate();
+    
+    // Update on resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            questionMarks.forEach(mark => {
+                // Keep marks within bounds on resize
+                mark.x = Math.max(0, Math.min(window.innerWidth - mark.size, mark.x));
+                mark.y = Math.max(0, Math.min(window.innerHeight - mark.size, mark.y));
+            });
+        }, 100);
+    });
+}
 

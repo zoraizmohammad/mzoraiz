@@ -66,6 +66,28 @@ body {
     overflow: hidden;
 }
 
+/* Floating question marks */
+.question-marks-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.question-mark {
+    position: absolute;
+    color: var(--text-secondary);
+    opacity: 0.4;
+    font-family: 'Beckman Free', sans-serif;
+    font-weight: 300;
+    user-select: none;
+    transition: opacity 0.3s ease, color 0.3s ease;
+    will-change: transform;
+}
+
 /* Hero content */
 .hero-content {
     position: relative;
@@ -293,6 +315,10 @@ body {
     .subtitle {
         font-size: 5vw;
         margin-top: 20px;
+    }
+    
+    .question-mark {
+        opacity: 0.3;
     }
 }
 
