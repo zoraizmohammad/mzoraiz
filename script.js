@@ -49,13 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Calculate the range of horizontal movement
         // The eye bar is 6vw wide, circle is 3vw wide
         // With transform translate(-50%, -50%), left represents the CENTER position
-        // Center can be from 1.5vw (left edge at 0) to 4.5vw (right edge at 6vw)
-        // With padding of 0.5vw, center can be from 2vw to 4vw
+        // To keep circle within bar: center must be between 1.5vw (left edge at 0) and 4.5vw (right edge at 6vw)
+        // With padding of 0.75vw, center can be from 2.25vw to 3.75vw
         const eyeBarWidth = 6; // 6vw
         const circleWidth = 3; // 3vw
-        const padding = 0.5; // 0.5vw padding from edges
-        const maxLeft = circleWidth / 2 + padding; // 2vw (center position for left edge at 0.5vw)
-        const maxRight = eyeBarWidth - circleWidth / 2 - padding; // 4vw (center position for right edge at 5.5vw)
+        const padding = 0.75; // 0.75vw padding from edges (increased to prevent overflow)
+        const maxLeft = circleWidth / 2 + padding; // 2.25vw (center position for left edge at 0.75vw)
+        const maxRight = eyeBarWidth - circleWidth / 2 - padding; // 3.75vw (center position for right edge at 5.25vw)
         
         // Calculate the range of vertical movement
         // The eye bar is 8vw tall, circle is 3vw tall
@@ -70,18 +70,18 @@ document.addEventListener('DOMContentLoaded', () => {
         function moveEyesTogether() {
             // Horizontal: Avoid the middle - split into left and right zones
             // Middle is around 3vw (center of 6vw bar)
-            const middleStartH = 2.5; // Start of middle zone to avoid horizontally
-            const middleEndH = 3.5;   // End of middle zone to avoid horizontally
+            const middleStartH = 2.75; // Start of middle zone to avoid horizontally
+            const middleEndH = 3.25;   // End of middle zone to avoid horizontally
             
             // Randomly choose left or right side
             const chooseLeft = Math.random() < 0.5;
             
             let leftPosition;
             if (chooseLeft) {
-                // Left side: from maxLeft (2vw) to middleStart (2.5vw)
+                // Left side: from maxLeft (2.25vw) to middleStart (2.75vw)
                 leftPosition = maxLeft + Math.random() * (middleStartH - maxLeft);
             } else {
-                // Right side: from middleEnd (3.5vw) to maxRight (4vw)
+                // Right side: from middleEnd (3.25vw) to maxRight (3.75vw)
                 leftPosition = middleEndH + Math.random() * (maxRight - middleEndH);
             }
             

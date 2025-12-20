@@ -67,7 +67,7 @@ body {
     background: #000;
     border-radius: 50%;
     top: var(--eye-position-vertical, 50%);
-    left: var(--eye-position, 0.5vw);
+    left: var(--eye-position, 2.25vw);
     transform: translate(-50%, -50%);
     transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
