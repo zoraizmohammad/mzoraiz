@@ -1,3 +1,27 @@
+// Theme management
+function initTheme() {
+    // Check for saved theme preference or default to dark
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    // Default to dark mode if no preference exists
+    const theme = savedTheme || (prefersDark ? 'dark' : 'dark');
+    
+    // Set data-theme attribute on html element
+    document.documentElement.setAttribute('data-theme', theme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+}
+
+// Initialize theme on page load (before DOMContentLoaded to avoid flash)
+initTheme();
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     // Setup scroll wheel with seamless looping
@@ -20,32 +44,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Match banner width to MOHAMMAD name-line width
-    const nameLines = document.querySelectorAll('.name-line');
-    const banner = document.querySelector('.banner');
-    
-    if (nameLines.length > 0 && banner) {
-        // Use the first name-line (MOHAMMAD) to match width
-        const mohammadLine = nameLines[0];
-        const mohammadWidth = mohammadLine.offsetWidth;
+    // Match banner width to MOHAMMAD name-line width (after scroll wheel is set up)
+    function setBannerWidth() {
+        const nameLines = document.querySelectorAll('.name-line');
+        const banner = document.querySelector('.banner');
         
-        // Set banner width to match
-        banner.style.width = mohammadWidth + 'px';
-        
-        // Update on window resize
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                const newWidth = mohammadLine.offsetWidth;
-                banner.style.width = newWidth + 'px';
-            }, 100);
-        });
+        if (nameLines.length > 0 && banner) {
+            // Use the first name-line (MOHAMMAD) to match width
+            const mohammadLine = nameLines[0];
+            const mohammadWidth = mohammadLine.offsetWidth;
+            
+            // Set banner width to match
+            banner.style.width = mohammadWidth + 'px';
+        }
     }
     
+    // Set banner width after a short delay to ensure DOM is ready
+    setTimeout(setBannerWidth, 100);
+    
+    // Update on window resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(setBannerWidth, 100);
+    });
+    
     // Synchronous eye movement - both eyes look around together (left/right and up/down)
-    const eyes = document.querySelectorAll('.eye-toggle');
-    if (eyes.length === 2) {
+    const eyesForMovement = document.querySelectorAll('.eye-toggle');
+    if (eyesForMovement.length === 2) {
         // Calculate the range of horizontal movement
         // The eye bar is 6vw wide, circle is 3vw wide
         // With transform translate(-50%, -50%), left represents the CENTER position
@@ -61,11 +87,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // The eye bar is 8vw tall, circle is 3vw tall
         // With transform translate(-50%, -50%), top represents the CENTER position
         // Center can be from 1.5vw (top edge at 0) to 6.5vw (bottom edge at 8vw)
-        // With padding of 0.5vw, center can be from 2vw to 6vw
+        // With padding of 0.75vw, center can be from 2.25vw to 5.75vw
         const eyeBarHeight = 8; // 8vw
         const circleHeight = 3; // 3vw
-        const maxTop = circleHeight / 2 + padding; // 2vw (center position for top edge at 0.5vw)
-        const maxBottom = eyeBarHeight - circleHeight / 2 - padding; // 6vw (center position for bottom edge at 7.5vw)
+        const verticalPadding = 0.75; // 0.75vw padding from edges
+        const maxTop = circleHeight / 2 + verticalPadding; // 2.25vw (center position for top edge at 0.75vw)
+        const maxBottom = eyeBarHeight - circleHeight / 2 - verticalPadding; // 5.75vw (center position for bottom edge at 7.25vw)
         
         function moveEyesTogether() {
             // Horizontal: Avoid the middle - split into left and right zones
@@ -95,15 +122,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let topPosition;
             if (chooseTop) {
-                // Top side: from maxTop (2vw) to middleStart (3.5vw)
+                // Top side: from maxTop (2.25vw) to middleStart (3.5vw)
                 topPosition = maxTop + Math.random() * (middleStartV - maxTop);
             } else {
-                // Bottom side: from middleEnd (4.5vw) to maxBottom (6vw)
+                // Bottom side: from middleEnd (4.5vw) to maxBottom (5.75vw)
                 topPosition = middleEndV + Math.random() * (maxBottom - middleEndV);
             }
             
             // Move both eyes to the same position simultaneously using CSS custom properties
-            eyes.forEach(eye => {
+            eyesForMovement.forEach(eye => {
                 eye.style.setProperty('--eye-position', `${leftPosition}vw`);
                 eye.style.setProperty('--eye-position-vertical', `${topPosition}vw`);
             });
@@ -116,5 +143,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Start the eye movement after a short delay
         setTimeout(moveEyesTogether, 1000 + Math.random() * 1000);
     }
+    
+    // Click to toggle theme (dark/light)
+    const eyesForClick = document.querySelectorAll('.eye-toggle');
+    eyesForClick.forEach(eye => {
+        eye.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Toggle theme between dark and light
+            toggleTheme();
+        });
+    });
 });
 

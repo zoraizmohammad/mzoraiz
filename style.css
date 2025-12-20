@@ -4,11 +4,35 @@
     box-sizing: border-box;
 }
 
+/* CSS Variable-based Theme System */
+:root {
+    /* Dark Mode (default) */
+    --bg: #0E1117;
+    --surface: #161B22;
+    --text-primary: #F5F7FA;
+    --text-secondary: #9BA3AF;
+    --accent: #5EEAD4;
+    --accent-muted: #8FAADC;
+    --divider: #3DDCBE;
+}
+
+[data-theme="light"] {
+    /* Light Mode */
+    --bg: #F7F9FC;
+    --surface: #E5ECF3;
+    --text-primary: #0E1117;
+    --text-secondary: #4B5563;
+    --accent: #0F766E;
+    --accent-muted: #3B82F6;
+    --divider: #0D9488;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     overflow: hidden;
     height: 100vh;
-    background: #FFE5B4; /* Light orange background */
+    background: var(--bg);
+    transition: background 0.3s ease;
 }
 
 .hero-container {
@@ -42,21 +66,24 @@ body {
 .letter {
     font-size: 8vw;
     font-weight: 900;
-    color: #000;
+    color: var(--text-primary);
     line-height: 1;
     letter-spacing: 0.02em;
+    transition: color 0.3s ease;
 }
 
 .eye-toggle {
     display: inline-block;
     width: 6vw;
     height: 8vw;
-    background: #fff;
+    background: var(--text-primary);
     border-radius: 50px;
     position: relative;
     margin: 0 8px;
     vertical-align: middle;
     line-height: 8vw;
+    cursor: pointer;
+    transition: background 0.3s ease;
 }
 
 .eye-toggle::after {
@@ -64,23 +91,24 @@ body {
     position: absolute;
     width: 3vw;
     height: 3vw;
-    background: #000;
+    background: var(--accent);
     border-radius: 50%;
     top: var(--eye-position-vertical, 50%);
     left: var(--eye-position, 2.25vw);
     transform: translate(-50%, -50%);
-    transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
 }
+
 
 /* Banner with scroll wheel */
 .banner {
-    background: #000;
+    background: var(--surface);
     padding: 15px 20px;
     border-radius: 50px;
     margin: 20px 0;
     position: relative;
     overflow: hidden;
-    width: fit-content;
+    transition: background 0.3s ease;
 }
 
 .scroll-wheel-container {
@@ -99,7 +127,7 @@ body {
 }
 
 .scroll-item {
-    color: #fff;
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 500;
     text-transform: uppercase;
@@ -111,14 +139,16 @@ body {
     justify-content: center;
     flex-shrink: 0;
     padding: 0 10px;
+    transition: color 0.3s ease;
 }
 
 .scroll-dot {
-    color: #fff;
+    color: var(--divider);
     font-size: 16px;
     font-weight: 300;
     flex-shrink: 0;
     opacity: 0.7;
+    transition: color 0.3s ease;
 }
 
 /* Seamless infinite horizontal scroll animation */
@@ -145,12 +175,14 @@ body {
 
 .scroll-wheel-container::before {
     left: 0;
-    background: linear-gradient(to right, rgba(0, 0, 0, 1), transparent);
+    background: linear-gradient(to right, var(--surface), transparent);
+    transition: background 0.3s ease;
 }
 
 .scroll-wheel-container::after {
     right: 0;
-    background: linear-gradient(to left, rgba(0, 0, 0, 1), transparent);
+    background: linear-gradient(to left, var(--surface), transparent);
+    transition: background 0.3s ease;
 }
 
 /* Responsive design */
