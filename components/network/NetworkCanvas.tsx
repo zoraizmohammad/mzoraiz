@@ -73,7 +73,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
   const pulseDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Subscribe to scene store
-  const { currentSceneId, sceneProgress, highlightNodeIds } = useSceneStore();
+  const { currentSceneId, sceneProgress, highlightNodeIds, ambientMode, activeSectionId } = useSceneStore();
 
   // Project hub IDs in order (0-4)
   const PROJECT_HUB_IDS = [
@@ -116,6 +116,37 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
     currentSceneIdRef.current = currentSceneId;
   }, [currentSceneId]);
 
+  // Get section-aware opacity multiplier (needs to be accessible in setupCanvas)
+  const getSectionOpacity = (): number => {
+    if (!activeSectionId) return 0.6; // Default when no section active
+    
+    // Per-section opacity multipliers
+    const sectionOpacityMap: Record<string, number> = {
+      hero: 1.0,        // Strong in hero
+      domains: 0.8,     // Strong in domains
+      work: 0.7,        // Moderate in work
+      projects: 0.7,    // Moderate in projects
+      experience: 0.5,  // Faded in experience
+      proof: 0.4,       // Very faded in proof
+      notes: 0.3,       // Almost invisible in notes (calm mode)
+      contact: 0.6,     // Moderate in contact
+    };
+    
+    return sectionOpacityMap[activeSectionId] ?? 0.6;
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // Update canvas opacity and blur based on section
+    const sectionOpacity = getSectionOpacity();
+    const blurAmount = sectionOpacity < 0.5 ? 2 : 0;
+    canvas.style.opacity = String(sectionOpacity);
+    canvas.style.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : "none";
+    canvas.style.transition = "opacity 0.8s ease-out, filter 0.8s ease-out";
+  }, [activeSectionId]);
+  
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -400,12 +431,32 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         .map((edge) => edge.id);
     };
 
+    // Get section-aware opacity multiplier (local version for drawBaseGraph)
+    const getSectionOpacityLocal = (): number => {
+      if (!activeSectionId) return 0.6; // Default when no section active
+      
+      // Per-section opacity multipliers
+      const sectionOpacityMap: Record<string, number> = {
+        hero: 1.0,        // Strong in hero
+        domains: 0.8,     // Strong in domains
+        work: 0.7,        // Moderate in work
+        projects: 0.7,    // Moderate in projects
+        experience: 0.5,  // Faded in experience
+        proof: 0.4,       // Very faded in proof
+        notes: 0.3,       // Almost invisible in notes (calm mode)
+        contact: 0.6,     // Moderate in contact
+      };
+      
+      return sectionOpacityMap[activeSectionId] ?? 0.6;
+    };
+
     // Draw base graph (edges and nodes)
     const drawBaseGraph = () => {
       if (!sceneRef.current) return;
 
       const scene = sceneRef.current;
       const transitionProgress = transitionStateRef.current?.progress ?? 1;
+      const sectionOpacity = getSectionOpacityLocal();
       
       // Calculate active hub for projects scene
       const activeHubNodeId = getActiveHubNodeId();
@@ -433,6 +484,9 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         if (isActiveHubEdge) {
           finalOpacity = Math.min(finalOpacity * 1.8, 0.4); // Increase opacity but keep it subtle
         }
+
+        // Apply section-aware opacity
+        finalOpacity = finalOpacity * sectionOpacity;
 
         ctx.strokeStyle = `rgba(230, 228, 223, ${finalOpacity})`;
         ctx.lineWidth = edge.weight * 0.5;
@@ -478,6 +532,9 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
         } else if (isActiveHub) {
           nodeOpacity = finalOpacity * 0.35; // Subtle increase for active hub
         }
+        
+        // Apply section-aware opacity
+        nodeOpacity = nodeOpacity * sectionOpacity;
         
         ctx.fillStyle = `rgba(230, 228, 223, ${nodeOpacity})`;
         
@@ -737,6 +794,10 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
 
       // Step physics simulation (with increased anchor force during transitions)
       const isTransitioning = transitionStateRef.current?.isActive ?? false;
+      
+      // Adjust ambient motion based on ambientMode
+      const ambientMultiplier = ambientMode === "calm" ? 0.2 : 1.0; // Reduce drift/wobble by 80% in calm mode
+      
       stepPhysics(
         sceneRef.current,
         dt * 60,
@@ -746,6 +807,8 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
           reducedMotion: reducedMotionRef.current,
           intensity,
           isTransitioning,
+          ambientDrift: (sceneRef.current.ambient?.drift ?? 0.0001) * ambientMultiplier,
+          ambientWobble: (sceneRef.current.ambient?.wobble ?? 0.0002) * ambientMultiplier,
         },
         anchorPositionsRef.current,
         currentTime
@@ -809,7 +872,7 @@ const NetworkCanvas = forwardRef<NetworkCanvasHandle>((props, ref) => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0 w-full h-full"
+      className="fixed inset-0 pointer-events-none z-[2] w-full h-full"
       style={{ background: "transparent" }}
     />
   );
