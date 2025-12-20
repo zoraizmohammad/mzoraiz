@@ -1,3 +1,3 @@
 # mzoraiz
 personal website
-starbase version
+questions worth asking
