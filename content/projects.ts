@@ -13,6 +13,10 @@ export interface Project {
     demo?: string;
   };
   domainId: "agentic-ai" | "privacy-crypto" | "hardware-signals" | "comp-bio-ml";
+  // Mini diagram data
+  inputs: string[];
+  transforms: string[];
+  outputs: string[];
 }
 
 export const projects: Project[] = [
@@ -42,6 +46,9 @@ export const projects: Project[] = [
       writeup: "/projects/aws-benchmark",
     },
     domainId: "agentic-ai",
+    inputs: ["Service Configs", "Test Parameters", "Performance Baselines"],
+    transforms: ["Agent Orchestration", "LLM Test Generation", "Parallel Execution"],
+    outputs: ["Benchmark Reports", "Optimization Recommendations", "Performance Metrics"],
   },
   {
     id: "ciphershield",
@@ -70,6 +77,9 @@ export const projects: Project[] = [
       demo: "https://ciphershield.demo",
     },
     domainId: "privacy-crypto",
+    inputs: ["Encrypted Data", "Computation Queries", "Public Parameters"],
+    transforms: ["ZKP Generation", "Homomorphic Operations", "MPC Coordination"],
+    outputs: ["Verified Results", "Proof Artifacts", "Computation Transcripts"],
   },
   {
     id: "sonicsync",
@@ -97,6 +107,9 @@ export const projects: Project[] = [
       writeup: "/projects/sonicsync",
     },
     domainId: "hardware-signals",
+    inputs: ["Audio Signals", "Environmental Data", "User Profiles"],
+    transforms: ["Psychoacoustic Modeling", "Noise Cancellation", "Frequency Compensation"],
+    outputs: ["Enhanced Audio", "Directional Beams", "Communication Metrics"],
   },
   {
     id: "fpga-hologram",
@@ -125,6 +138,9 @@ export const projects: Project[] = [
       demo: "https://fpga-hologram.demo",
     },
     domainId: "hardware-signals",
+    inputs: ["3D Scene Data", "View Parameters", "Light Sources"],
+    transforms: ["Wavefront Calculation", "FPGA Parallel Processing", "Hologram Synthesis"],
+    outputs: ["Holographic Patterns", "3D Images", "Rendering Metrics"],
   },
   {
     id: "ml-gene-editing",
@@ -152,6 +168,9 @@ export const projects: Project[] = [
       writeup: "/projects/ml-gene-editing",
     },
     domainId: "comp-bio-ml",
+    inputs: ["Genomic Sequences", "Editing Targets", "Reference Data"],
+    transforms: ["Sequence Encoding", "CNN Feature Extraction", "Pattern Classification"],
+    outputs: ["Signature Predictions", "Confidence Scores", "Off-Target Alerts"],
   },
 ];
 

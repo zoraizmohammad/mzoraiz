@@ -4,6 +4,7 @@ import { useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useSceneStore } from "@/store/sceneStore";
 import { projects, projectNodeIdMap, type Project } from "@/content/projects";
+import ProjectMiniDiagram from "@/components/work/ProjectMiniDiagram";
 
 export default function Projects() {
   const reducedMotion = useReducedMotion();
@@ -397,6 +398,9 @@ function ProjectLens({ project }: ProjectLensProps) {
           )}
         </div>
       </div>
+
+      {/* Mini system diagram */}
+      <ProjectMiniDiagram project={project} />
     </div>
   );
 }
