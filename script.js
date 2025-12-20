@@ -144,14 +144,43 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(moveEyesTogether, 1000 + Math.random() * 1000);
     }
     
-    // Click to toggle theme (dark/light)
+    // Click to toggle theme (dark/light) with squinting effect
     const eyesForClick = document.querySelectorAll('.eye-toggle');
     eyesForClick.forEach(eye => {
         eye.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            // Toggle theme between dark and light
-            toggleTheme();
+            
+            // Store current positions before squinting
+            const storedPositions = new Map();
+            eyesForClick.forEach(eyeEl => {
+                const currentLeft = eyeEl.style.getPropertyValue('--eye-position') || '2.25vw';
+                const currentTop = eyeEl.style.getPropertyValue('--eye-position-vertical') || '4vw';
+                storedPositions.set(eyeEl, { left: currentLeft, top: currentTop });
+            });
+            
+            // Add squinting class to both eyes
+            eyesForClick.forEach(e => {
+                e.classList.add('squinting');
+            });
+            
+            // Toggle theme at the peak of the squint (middle of animation)
+            setTimeout(() => {
+                toggleTheme();
+            }, 300); // Halfway through the 0.6s animation
+            
+            // Remove squinting class and restore positions after animation completes
+            setTimeout(() => {
+                eyesForClick.forEach(eyeEl => {
+                    eyeEl.classList.remove('squinting');
+                    // Restore the stored positions
+                    const positions = storedPositions.get(eyeEl);
+                    if (positions) {
+                        eyeEl.style.setProperty('--eye-position', positions.left);
+                        eyeEl.style.setProperty('--eye-position-vertical', positions.top);
+                    }
+                });
+            }, 600); // After animation completes
         });
     });
 });
