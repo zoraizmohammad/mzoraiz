@@ -195,11 +195,11 @@ function initFloatingQuestionMarks() {
     if (!heroContent) return;
     
     const questionMarks = [];
-    const numMarks = 40; // Number of question marks
+    const numMarks = 50; // Number of question marks (increased)
     const minSize = 20; // Minimum font size in pixels
     const maxSize = 60; // Maximum font size in pixels
-    const minSpeed = 0.3; // Minimum speed (increased)
-    const maxSpeed = 0.8; // Maximum speed (increased)
+    const minSpeed = 0.5; // Minimum speed (increased)
+    const maxSpeed = 1.2; // Maximum speed (increased)
     const padding = 100; // Padding around content to avoid
     
     // Get content bounds for even distribution
@@ -296,56 +296,40 @@ function initFloatingQuestionMarks() {
         };
     }
     
-    // Distribute question marks evenly across zones (top, bottom, left, right) with random positions
-    const marksPerZone = Math.floor(numMarks / 4);
-    const remaining = numMarks % 4;
+    // Distribute question marks with strong emphasis on left and right sides
+    // Allocate: 30% left, 30% right, 20% top, 20% bottom
+    const leftMarks = Math.floor(numMarks * 0.3);
+    const rightMarks = Math.floor(numMarks * 0.3);
+    const topMarks = Math.floor(numMarks * 0.2);
+    const bottomMarks = numMarks - leftMarks - rightMarks - topMarks;
     
     // Create question marks
-    for (let i = 0; i < numMarks; i++) {
+    let markIndex = 0;
+    
+    // Create left side marks
+    for (let i = 0; i < leftMarks; i++) {
         const mark = document.createElement('div');
         mark.className = 'question-mark';
         mark.textContent = '?';
         
-        // Random size
         const size = minSize + Math.random() * (maxSize - minSize);
         mark.style.fontSize = `${size}px`;
         
-        // Determine which zone this mark should be in (top, bottom, left, right)
-        let zone;
-        if (i < marksPerZone) {
-            zone = 0; // Top
-        } else if (i < marksPerZone * 2) {
-            zone = 1; // Bottom
-        } else if (i < marksPerZone * 3) {
-            zone = 2; // Left
-        } else if (i < marksPerZone * 4) {
-            zone = 3; // Right
-        } else {
-            // Remaining marks distributed randomly
-            zone = Math.floor(Math.random() * 4);
-        }
+        const position = getRandomPositionInZone(2, size, questionMarks);
+        mark.style.left = `${position.x}px`;
+        mark.style.top = `${position.y}px`;
         
-        // Get random position in zone, avoiding overlaps
-        const position = getRandomPositionInZone(zone, size, questionMarks);
-        const x = position.x;
-        const y = position.y;
-        
-        mark.style.left = `${x}px`;
-        mark.style.top = `${y}px`;
-        
-        // Random velocity
         const angle = Math.random() * Math.PI * 2;
         const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
         const vx = Math.cos(angle) * speed;
         const vy = Math.sin(angle) * speed;
         
-        // Add random direction change timer for each mark
-        const directionChangeInterval = 2000 + Math.random() * 3000; // 2-5 seconds
+        const directionChangeInterval = 1000 + Math.random() * 2000;
         
         questionMarks.push({
             element: mark,
-            x: x,
-            y: y,
+            x: position.x,
+            y: position.y,
             vx: vx,
             vy: vy,
             size: size,
@@ -354,6 +338,112 @@ function initFloatingQuestionMarks() {
         });
         
         container.appendChild(mark);
+        markIndex++;
+    }
+    
+    // Create right side marks
+    for (let i = 0; i < rightMarks; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'question-mark';
+        mark.textContent = '?';
+        
+        const size = minSize + Math.random() * (maxSize - minSize);
+        mark.style.fontSize = `${size}px`;
+        
+        const position = getRandomPositionInZone(3, size, questionMarks);
+        mark.style.left = `${position.x}px`;
+        mark.style.top = `${position.y}px`;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        const directionChangeInterval = 1000 + Math.random() * 2000;
+        
+        questionMarks.push({
+            element: mark,
+            x: position.x,
+            y: position.y,
+            vx: vx,
+            vy: vy,
+            size: size,
+            lastDirectionChange: Date.now(),
+            directionChangeInterval: directionChangeInterval
+        });
+        
+        container.appendChild(mark);
+        markIndex++;
+    }
+    
+    // Create top marks
+    for (let i = 0; i < topMarks; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'question-mark';
+        mark.textContent = '?';
+        
+        const size = minSize + Math.random() * (maxSize - minSize);
+        mark.style.fontSize = `${size}px`;
+        
+        const position = getRandomPositionInZone(0, size, questionMarks);
+        mark.style.left = `${position.x}px`;
+        mark.style.top = `${position.y}px`;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        const directionChangeInterval = 1000 + Math.random() * 2000;
+        
+        questionMarks.push({
+            element: mark,
+            x: position.x,
+            y: position.y,
+            vx: vx,
+            vy: vy,
+            size: size,
+            lastDirectionChange: Date.now(),
+            directionChangeInterval: directionChangeInterval
+        });
+        
+        container.appendChild(mark);
+        markIndex++;
+    }
+    
+    // Create bottom marks
+    for (let i = 0; i < bottomMarks; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'question-mark';
+        mark.textContent = '?';
+        
+        const size = minSize + Math.random() * (maxSize - minSize);
+        mark.style.fontSize = `${size}px`;
+        
+        const position = getRandomPositionInZone(1, size, questionMarks);
+        mark.style.left = `${position.x}px`;
+        mark.style.top = `${position.y}px`;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        
+        const directionChangeInterval = 1000 + Math.random() * 2000;
+        
+        questionMarks.push({
+            element: mark,
+            x: position.x,
+            y: position.y,
+            vx: vx,
+            vy: vy,
+            size: size,
+            lastDirectionChange: Date.now(),
+            directionChangeInterval: directionChangeInterval
+        });
+        
+        container.appendChild(mark);
+        markIndex++;
     }
     
     // Animation loop
@@ -368,27 +458,36 @@ function initFloatingQuestionMarks() {
             // Periodic random direction changes for more chaotic movement
             const now = Date.now();
             if (now - mark.lastDirectionChange > mark.directionChangeInterval) {
-                // Randomly change direction
+                // Randomly change direction with more randomness
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
-                mark.vx = Math.cos(angle) * speed;
-                mark.vy = Math.sin(angle) * speed;
+                const currentSpeed = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
+                const newSpeed = Math.max(minSpeed, Math.min(maxSpeed, currentSpeed + (Math.random() - 0.5) * 0.3));
+                mark.vx = Math.cos(angle) * newSpeed;
+                mark.vy = Math.sin(angle) * newSpeed;
                 mark.lastDirectionChange = now;
-                mark.directionChangeInterval = 1500 + Math.random() * 2500; // 1.5-4 seconds
+                mark.directionChangeInterval = 800 + Math.random() * 1500; // 0.8-2.3 seconds (more frequent)
             }
             
             // Update position
             mark.x += mark.vx;
             mark.y += mark.vy;
             
-            // Boundary collision (bounce off edges)
+            // Boundary collision (bounce off edges with more randomness)
             if (mark.x <= 0 || mark.x >= window.innerWidth - mark.size) {
-                mark.vx *= -1.2; // Add some bounce energy
+                // Add random angle to bounce instead of just reversing
+                const bounceAngle = (Math.random() - 0.5) * Math.PI * 0.5; // Random angle within 90 degrees
+                const speed = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
+                mark.vx = Math.cos(bounceAngle) * speed * (mark.x <= 0 ? 1 : -1);
+                mark.vy = Math.sin(bounceAngle) * speed + (Math.random() - 0.5) * 0.5;
                 mark.x = Math.max(0, Math.min(window.innerWidth - mark.size, mark.x));
             }
             
             if (mark.y <= 0 || mark.y >= window.innerHeight - mark.size) {
-                mark.vy *= -1.2; // Add some bounce energy
+                // Add random angle to bounce instead of just reversing
+                const bounceAngle = (Math.random() - 0.5) * Math.PI * 0.5; // Random angle within 90 degrees
+                const speed = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
+                mark.vx = Math.cos(bounceAngle) * speed + (Math.random() - 0.5) * 0.5;
+                mark.vy = Math.sin(bounceAngle) * speed * (mark.y <= 0 ? 1 : -1);
                 mark.y = Math.max(0, Math.min(window.innerHeight - mark.size, mark.y));
             }
             
@@ -415,7 +514,7 @@ function initFloatingQuestionMarks() {
                     mark.vy += (dy / distance) * repulsionStrength;
                     
                     // Limit velocity (increased)
-                    const maxVel = 1.0;
+                    const maxVel = 1.5;
                     const vel = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
                     if (vel > maxVel) {
                         mark.vx = (mark.vx / vel) * maxVel;
@@ -475,12 +574,28 @@ function initFloatingQuestionMarks() {
             });
             
             // Apply more random drift for chaotic movement
-            mark.vx += (Math.random() - 0.5) * 0.05;
-            mark.vy += (Math.random() - 0.5) * 0.05;
+            mark.vx += (Math.random() - 0.5) * 0.12;
+            mark.vy += (Math.random() - 0.5) * 0.12;
+            
+            // Prevent marks from getting stuck by adding occasional strong random push
+            if (Math.random() < 0.02) { // 2% chance per frame
+                const pushAngle = Math.random() * Math.PI * 2;
+                const pushStrength = 0.3;
+                mark.vx += Math.cos(pushAngle) * pushStrength;
+                mark.vy += Math.sin(pushAngle) * pushStrength;
+            }
             
             // Less damping to keep them moving more
-            mark.vx *= 0.995;
-            mark.vy *= 0.995;
+            mark.vx *= 0.998;
+            mark.vy *= 0.998;
+            
+            // Prevent velocity from getting too low (keeps them moving)
+            const currentSpeed = Math.sqrt(mark.vx * mark.vx + mark.vy * mark.vy);
+            if (currentSpeed < minSpeed * 0.5) {
+                const angle = Math.random() * Math.PI * 2;
+                mark.vx = Math.cos(angle) * minSpeed;
+                mark.vy = Math.sin(angle) * minSpeed;
+            }
             
             // Update element position
             mark.element.style.left = `${mark.x}px`;

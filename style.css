@@ -33,6 +33,10 @@
     --divider: #3DDCBE;
     --eye-color: #F5F7FA;
     --wheel-text: #F5F7FA;
+    --tag-bg: rgba(0, 0, 0, 0.2);
+    --tag-border: rgba(255, 255, 255, 0.1);
+    --tag-bg-hover: rgba(0, 0, 0, 0.3);
+    --tag-border-hover: rgba(255, 255, 255, 0.15);
 }
 
 [data-theme="light"] {
@@ -46,6 +50,10 @@
     --divider: #0D9488;
     --eye-color: #9BA3AF;
     --wheel-text: #9BA3AF;
+    --tag-bg: rgba(0, 0, 0, 0.05);
+    --tag-border: rgba(0, 0, 0, 0.1);
+    --tag-bg-hover: rgba(0, 0, 0, 0.08);
+    --tag-border-hover: rgba(0, 0, 0, 0.15);
 }
 
 body {
@@ -488,13 +496,15 @@ body {
 /* Email link in about section */
 .about-email-link {
     color: var(--text-secondary);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.3s ease, color 0.3s ease;
+    text-decoration: underline;
+    text-decoration-color: var(--text-secondary);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: text-decoration-color 0.3s ease, color 0.3s ease;
 }
 
 .about-email-link:hover {
-    border-bottom-color: var(--text-secondary);
+    text-decoration-color: var(--text-primary);
     color: var(--text-primary);
 }
 
@@ -503,23 +513,39 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    border: 1px dashed var(--text-secondary);
-    border-radius: 6px;
-    background: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    margin: 0 2px;
+    padding: 6px 10px;
+    border: 1px solid var(--tag-border);
+    border-radius: 12px;
+    background: var(--tag-bg);
+    font-family: 'Garnet Capitals', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0 3px;
     vertical-align: baseline;
+    line-height: 1.4;
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.tag-badge:hover {
+    background: var(--tag-bg-hover);
+    border-color: var(--tag-border-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tag-badge:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .tag-icon {
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .tag-duke .tag-icon {
@@ -534,17 +560,47 @@ body {
 }
 
 .tag-location .tag-icon {
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1;
 }
 
 .tag-link {
     color: var(--text-secondary);
     text-decoration: none;
     transition: color 0.3s ease;
+    border: none;
 }
 
-.tag-link:hover {
+.tag-link:hover,
+.tag-link:focus {
     color: var(--text-primary);
+    text-decoration: none;
+}
+
+/* Support for span.tag-link (non-anchor elements) */
+.tag-badge span.tag-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.tag-badge span.tag-link:hover {
+    color: var(--text-primary);
+}
+
+.tag-link:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Ensure links inside badges don't get underlined */
+.tag-badge a {
+    text-decoration: none;
+}
+
+.tag-badge a:hover {
+    text-decoration: none;
 }
 
 /* Underlined text for emphasis */
@@ -669,17 +725,23 @@ body {
     }
     
     .tag-badge {
-        font-size: 12px;
-        padding: 3px 8px;
+        font-size: 11px;
+        padding: 5px 8px;
+        border-radius: 10px;
+        margin: 0 2px;
     }
     
     .tag-icon {
-        font-size: 12px;
+        font-size: 11px;
     }
     
     .tag-duke .tag-icon {
         width: 14px;
         height: 14px;
+        font-size: 10px;
+    }
+    
+    .tag-location .tag-icon {
         font-size: 10px;
     }
     
