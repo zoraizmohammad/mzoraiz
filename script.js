@@ -626,6 +626,24 @@ function initFloatingQuestionMarks() {
 document.addEventListener('DOMContentLoaded', () => {
     const sections = document.querySelectorAll('.expandable-section');
     
+    // Function to expand and scroll to a section
+    function expandAndScrollToSection(targetSection) {
+        // Close all sections
+        sections.forEach(s => s.classList.remove('expanded'));
+        
+        // Expand target section
+        targetSection.classList.add('expanded');
+        
+        // Smooth scroll to section
+        setTimeout(() => {
+            targetSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start',
+                inline: 'nearest'
+            });
+        }, 100);
+    }
+    
     sections.forEach(section => {
         const header = section.querySelector('.section-header');
         
@@ -647,6 +665,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         inline: 'nearest'
                     });
                 }, 100);
+            }
+        });
+    });
+    
+    // Handle anchor links to sections (e.g., #questions)
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            const href = link.getAttribute('href');
+            if (href === '#questions') {
+                e.preventDefault();
+                const questionsSection = document.getElementById('questions');
+                if (questionsSection) {
+                    expandAndScrollToSection(questionsSection);
+                }
             }
         });
     });
